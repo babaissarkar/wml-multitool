@@ -24,7 +24,7 @@ public class Parser {
 	private List<String> tagStack = new ArrayList<>();
 	private HashMap<String, List<Consumer<String>>> queryLambdas = new LinkedHashMap<>();
 	private String lastLocTraceString;
-	private static final Pattern NOT_TAG_PATTERN = Pattern.compile("[^a-z_\\d]|^\\d");
+	private static final Pattern NOT_TAG_PATTERN = Pattern.compile("[^a-z_\\d]|^\\d", Pattern.CASE_INSENSITIVE);
 	
 	public void addQuery(String query, Consumer<String> queryLambda) {
 		queryLambdas.computeIfAbsent(query, k -> new ArrayList<>()).add(queryLambda);
