@@ -22,6 +22,7 @@ import static com.babai.wml.tokenizer.Token.Kind.*;
 public class Parser {
 	private List<String> tagStack = new ArrayList<>();
 	private HashMap<String, List<Consumer<String>>> queryLambdas = new LinkedHashMap<>();
+	private String lastLocTraceString;
 	private static final Pattern NOT_TAG_PATTERN = Pattern.compile("[^a-z_\\d]|^\\d");
 	
 	public void addQuery(String query, Consumer<String> queryLambda) {
@@ -57,7 +58,16 @@ public class Parser {
 			}
 		}
 		case TAG -> {
-			String tagName = t.content().strip();
+			String tagName = t.content();
+			
+			// Detect location from embedded @ annotation, if any
+			if (tagName.contains("@")) {
+				String[] nameAndLoc = tagName.split("@", 2);
+				tagName = nameAndLoc[0].trim();
+				lastLocTraceString = "\n\tIncluded from: "
+					+ nameAndLoc[1].replace(":", ", line ").replace("@", "\n\tIncluded from: ");
+			}
+			
 			if (tagName.startsWith("+")) {
 				// appending tag, like [+units]
 				tagName = tagName.substring(1, tagName.length());
@@ -72,9 +82,11 @@ public class Parser {
 				} else if (tagStack.getLast().equals(tagName)) {
 					tagStack.removeLast();
 				} else {
-					errorPrint("Wrong end tag " + colorify(tagName, RED)
-					+ " found for tag "
-					+ colorify("[" + tagStack.getLast() + "]", tagColor));
+					errorPrint(
+						"Wrong end tag " + colorify(tagName, RED)
+						+ " found for tag "
+						+ colorify("[" + tagStack.getLast() + "]", tagColor)
+						+ lastLocTraceString);
 				}
 				// needs better handling
 			} else if (!NOT_TAG_PATTERN.matcher(tagName).find()) {

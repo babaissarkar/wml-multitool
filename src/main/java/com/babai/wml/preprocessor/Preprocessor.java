@@ -228,6 +228,12 @@ public class Preprocessor {
 			} else {
 				return Token.getRaw(nestedSubst, t.kind());
 			}
+		} else if (t.kind() == Token.Kind.TAG) {
+			// Embed token location via annotation to help with parse error stacktraces
+			String[] nameAndLoc = t.content().split("@", 2);
+			return "[" + nameAndLoc[0]
+					+ "@" + context.relativize(currentPath) + ":" + t.beginLine()
+					+ (nameAndLoc.length > 1 ? "@" + nameAndLoc[1] : "") + "]";
 		} else {
 			return t.raw();
 		}
