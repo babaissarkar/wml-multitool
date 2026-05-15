@@ -87,6 +87,7 @@ public class Parser {
 						"Wrong end tag " + colorify(tagName, RED)
 						+ " found for tag "
 						+ colorify("[" + tagStack.getLast() + "]", tagColor)
+						+ " at " + position(t.beginLine(), t.beginColumn()) + " of preprocessed output" + "\n"
 						+ lastLocTraceString);
 				}
 				// needs better handling
