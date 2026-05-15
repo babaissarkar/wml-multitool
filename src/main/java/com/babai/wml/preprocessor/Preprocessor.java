@@ -25,6 +25,7 @@ import static com.babai.wml.utils.LogUtils.*;
 import static com.babai.wml.cli.ANSIFormatter.colorify;
 import static com.babai.wml.parser.ParseUtils.*;
 import static com.babai.wml.tokenizer.Tokenizer.tokenize;
+import static com.babai.wml.tokenizer.Token.Kind.*;
 
 public class Preprocessor {
 	private boolean skipElse = true;
@@ -142,9 +143,9 @@ public class Preprocessor {
 		
 		var itor = tokenize(reader).listIterator();
 		
-		skip(itor, Token.Kind.EOL);
+		skip(itor, EOL);
 
-		skip(itor, Token.Kind.WHITESPACE);
+		skip(itor, WHITESPACE);
 		
 		String textdomain;
 		if (peek(itor).isDirectiveName("textdomain", true)) {
@@ -184,43 +185,43 @@ public class Preprocessor {
 	}
 	
 	private String handleDocComment(ListIterator<Token> itor) {
-		skip(itor, Token.Kind.EOL);
+		skip(itor, EOL);
 
-		skip(itor, Token.Kind.WHITESPACE);
+		skip(itor, WHITESPACE);
 
 		var docBuff = new StringBuilder();
-		while (peek(itor).kind() == Token.Kind.COMMENT && !peek(itor).isDirective()) {
+		while (peek(itor).isKind(COMMENT) && !peek(itor).isDirective()) {
 			Token t = itor.next();
 			if (t.isDirective()) break;
 			docBuff.append(t.content().trim());
-			if (peek(itor).kind() == Token.Kind.EOL) {
+			if (peek(itor).isKind(EOL)) {
 				t = itor.next();
 				docBuff.append(t.content());
 			}
-			skip(itor, Token.Kind.WHITESPACE);
+			skip(itor, WHITESPACE);
 		}
 		return docBuff.toString().trim();
 	}
 
 	private String processToken(ListIterator<Token> itor, Token t, List<String> currentArgs, boolean expandMacro) {
 		String content = t.content();
-		if (t.kind() == Token.Kind.COMMENT) {
+		if (t.isKind(COMMENT)) {
 			if (t.isDirective()) {
 				handleDirective(t, itor, currentPath.toUri().toString());
 				// suppress empty whitespace & linebreaks after directive lines
-				skip(itor, Token.Kind.WHITESPACE);
-				skip(itor, Token.Kind.EOL);
+				skip(itor, WHITESPACE);
+				skip(itor, EOL);
 			}
 			
 			return "";
-		} else if (t.kind() == Token.Kind.MACRO) {
+		} else if (t.isKind(MACRO)) {
 			// exapnd macro tokens
 			if (expandMacro) {
 				return expandMacro(t, currentArgs, context);
 			} else {
 				return t.raw();
 			}
-		} else if (t.kind() != Token.Kind.ANGLE_QUOTED && content.contains("{") && content.contains("}")) {
+		} else if (t.isNotKind(ANGLE_QUOTED) && content.contains("{") && content.contains("}")) {
 			// expand embedded macro block in other tokens
 			String nestedSubst = preprocessFragment(content, currentArgs);
 			if (nestedSubst.equals(content)) { // nth to subst, return raw
@@ -228,7 +229,7 @@ public class Preprocessor {
 			} else {
 				return Token.getRaw(nestedSubst, t.kind());
 			}
-		} else if (t.kind() == Token.Kind.TAG) {
+		} else if (t.isKind(TAG)) {
 			// Embed token location via annotation to help with parse error stacktraces
 			String[] nameAndLoc = t.content().split("@", 2);
 			return "[" + nameAndLoc[0]
@@ -294,7 +295,7 @@ public class Preprocessor {
 			String macroName = directiveArgs[0];
 			List<String> macroArgs = Arrays.asList(directiveArgs).subList(1, directiveArgs.length);
 			
-			skip(itor, Token.Kind.EOL, Token.Kind.WHITESPACE);
+			skip(itor, EOL, WHITESPACE);
 			
 			// Macro deprecation messages
 			boolean isDeprecated = false;
@@ -326,12 +327,12 @@ public class Preprocessor {
 					}
 				}
 				
-				skip(itor, Token.Kind.EOL, Token.Kind.WHITESPACE);
+				skip(itor, EOL, WHITESPACE);
 			}
 
 			String doc = handleDocComment(itor);
 			
-			skip(itor, Token.Kind.EOL, Token.Kind.WHITESPACE);
+			skip(itor, EOL, WHITESPACE);
 			
 			// defargs processing
 			var macroDefaultArgs = new LinkedHashMap<String, String>();
@@ -339,11 +340,11 @@ public class Preprocessor {
 				Token t = itor.next();
 				String defArgName = DirectiveHeader.parse(t, currentPath.toString()).args()[0]; // arg NAME
 				
-				skip(itor, Token.Kind.EOL);
+				skip(itor, EOL);
 				
 				macroDefaultArgs.put(defArgName, consumeUntilEndDirective("endarg", itor));
 				
-				skip(itor, Token.Kind.EOL, Token.Kind.WHITESPACE);
+				skip(itor, EOL, WHITESPACE);
 			}
 			
 			// Body
