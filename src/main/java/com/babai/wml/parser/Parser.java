@@ -79,7 +79,10 @@ public class Parser {
 				// end tag
 				tagName = tagName.substring(1, tagName.length());
 				if (tagStack.isEmpty()) {
-					errorPrint("End tag without matching start tag.");
+					errorPrint("End tag without matching start tag: "
+						+ colorify("[" + tagName + "]", tagColor)
+						+ " at " + position(t.beginLine(), t.beginColumn()) + " of preprocessed output"
+						+ lastLocTraceString);
 				} else if (tagStack.getLast().equals(tagName)) {
 					tagStack.removeLast();
 				} else {
