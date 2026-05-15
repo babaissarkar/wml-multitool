@@ -18,6 +18,7 @@ import static com.babai.wml.utils.LogUtils.*;
 import static com.babai.wml.cli.ANSIFormatter.colorify;
 import static com.babai.wml.tokenizer.Tokenizer.tokenize;
 import static com.babai.wml.tokenizer.Token.Kind.*;
+import static com.babai.wml.parser.ParseUtils.peek;
 
 public class Parser {
 	private List<String> tagStack = new ArrayList<>();
@@ -42,9 +43,9 @@ public class Parser {
 		case TEXT -> {
 			var line = new StringBuilder();
 			
-			while (t.isKind(TEXT, WHITESPACE, QUOTED, ANGLE_QUOTED)) {
-				line.append(t.content());
+			while (peek(itor).isKind(TEXT, WHITESPACE, QUOTED, ANGLE_QUOTED)) {
 				t = itor.next();
+				line.append(t.content());
 			}
 			
 			for (var query : queryLambdas.entrySet()) {
