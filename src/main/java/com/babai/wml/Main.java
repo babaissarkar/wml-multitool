@@ -92,6 +92,8 @@ public class Main {
 		var p = new Preprocessor(pathContext, predefines);
 		p.setListFilesInInfo(argParser.listFilesInInfo);
 		
+		LogUtils.infoPrint("Predefined macros: " + predefines.rowCount());
+		
 		BufferedWriter writer = null;
 		if (argParser.outputPath != null) {
 			writer = Files.newBufferedWriter(argParser.outputPath);
@@ -100,27 +102,51 @@ public class Main {
 		}
 //		p.setExtractData(argParse.extractUnitTypeData);
 
-		if (argParser.inputPath != null) {
-			LogUtils.debugPrint("Parsing " + colorify(argParser.inputPath.toString(), Colors.filePathColor));
-		}
-
 		for (Path incpath : argParser.includes) {
 			// FIXME recheck directory support
+			long depStart = System.nanoTime();
+			long mCountStart = p.getDefines().rowCount();
+			
 			p.preprocess(incpath);
+			
+			long depEnd = System.nanoTime();
+			long mCountEnd = p.getDefines().rowCount();
+			
+			LogUtils.infoPrint(
+				"Preprocessed "
+				+ colorify(pathContext.relativize(incpath), Colors.filePathColor) + ": "
+				+ (depEnd - depStart) / 1_000_000 + " ms. "
+				+ "Macros: " + (mCountEnd - mCountStart));
 		}
-
+		
 		String out = "";
 		if (argParser.inputPath != null) {
+			long mainStart = System.nanoTime();
+			long mCountStart = p.getDefines().rowCount();
+			
 			out = p.preprocess(argParser.inputPath);
+			
+			long mainEnd = System.nanoTime();
+			long mCountEnd = p.getDefines().rowCount();
+			
+			LogUtils.infoPrint(
+				"Preprocessed "
+				+ colorify(pathContext.relativize(argParser.inputPath), Colors.filePathColor) + ": "
+				+ (mainEnd - mainStart) / 1_000_000 + " ms. "
+				+ "Macros: " + (mCountEnd - mCountStart));
 		} else {
+			// since this is stdin, time/macro count is inconvenient. may or may not change later.
 			out = p.preprocessContent(new InputStreamReader(System.in));
 		}
 		
 		long preprocEnd = System.nanoTime();
-		LogUtils.infoPrint("Preprocessing finished in " + (preprocEnd - start) / 1_000_000 + " ms");
 		
 		defines = p.getDefines();
 		fileExplanations = p.getFileExplanations();
+		
+		LogUtils.infoPrint(
+			"Preprocessing finished: " + (preprocEnd - start) / 1_000_000 + " ms. "
+			+ "Macros: " + defines.rowCount());
 		
 		if (argParser.definitions) {
 			for (var row : defines.getRows()) {
@@ -131,8 +157,6 @@ public class Main {
 		} else {
 			writer.write(out);
 		}
-		
-		LogUtils.infoPrint("Total " + defines.rowCount() + " macros defined.");
 		
 		if (argParser.parse) {
 			HashSet<Path> binaryPaths = new HashSet<>();
