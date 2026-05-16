@@ -154,17 +154,18 @@ public class Main {
 					+ (String) row.getColumn("Name").getValue() + " | "
 					+ (String) row.getColumn("URI").getValue() + "\n");
 			}
-		} else {
+		} else if (argParser.queries.isEmpty()) {
 			writer.write(out);
 		}
 		
 		if (argParser.parse) {
 			HashSet<Path> binaryPaths = new HashSet<>();
-			Parser parser = new Parser();
+			var parser = new Parser();
 			
 			parser.addQuery("binary_path/path", v -> binaryPaths.add(Path.of(v)));
+			var buff = new StringBuilder();
 			for (var q : argParser.queries) {
-				parser.addQuery(q, v -> LogUtils.infoPrint("Query " + q + " result: " + v));
+				parser.addQuery(q, v -> buff.append("Query " + q + " result: " + v + "\n"));
 			}
 			
 			parser.parse(out);
@@ -174,6 +175,16 @@ public class Main {
 			LogUtils.infoPrint("Parsing finished in " + (parseEnd - start) / 1_000_000 + " ms");
 			
 			LogUtils.infoPrint("Binary Paths: " + binaryPaths);
+			
+			try {
+				if (!argParser.queries.isEmpty()) {
+					writer.write(!buff.isEmpty() ? buff.toString() : "Query did not match.");
+				} else {
+					writer.write(out);
+				}
+			} catch (IOException ioe) {
+				LogUtils.errorPrint(ioe.getMessage());
+			}
 		}
 
 //		var unitTypes = p.getUnitTypes();

@@ -94,7 +94,7 @@ public class ArgParser {
 	@Option(names = {"-df", "-definitions", "--definitions"}, description = "List all macro definitions. Output written to stdout or file pointed by -o.")
 	public boolean definitions = false;
 	
-	@Option(names = {"-q", "-query", "--query"}, description = "XPath-style WML query. Any tag/key matching this will be printed.")
+	@Option(names = {"-q", "-query", "--query"}, description = "XPath-style WML query. Any tag/key matching this will be printed to stdout or file pointed by -o.")
 	public List<String> queries = new ArrayList<>();
 	
 	// --------------- help + version -------------
