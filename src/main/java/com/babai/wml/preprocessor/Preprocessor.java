@@ -28,6 +28,10 @@ import static com.babai.wml.tokenizer.Tokenizer.tokenize;
 import static com.babai.wml.tokenizer.Token.Kind.*;
 
 public class Preprocessor {
+	private final static Pattern wspattern = Pattern.compile("\\s+");
+	private final static Pattern atpattern = Pattern.compile("@");
+	private final static Pattern eqlpattern = Pattern.compile("=");
+	
 	private boolean skipElse = true;
 	private Table defines;
 	private PathContext context;
@@ -231,7 +235,7 @@ public class Preprocessor {
 			}
 		} else if (t.isKind(TAG)) {
 			// Embed token location via annotation to help with parse error stacktraces
-			String[] nameAndLoc = t.content().split("@", 2);
+			String[] nameAndLoc = atpattern.split(t.content(), 2);
 			return "[" + nameAndLoc[0]
 					+ "@" + context.relativize(currentPath) + ":" + t.beginLine()
 					+ (nameAndLoc.length > 1 ? "@" + nameAndLoc[1] : "") + "]";
@@ -395,7 +399,6 @@ public class Preprocessor {
 		}
 	}
 	
-	private final static Pattern wspattern = Pattern.compile("\\s+");
 	private boolean isPath(String str) {
 		return str.contains("/") && !wspattern.matcher(str).find();
 	}
@@ -475,7 +478,7 @@ public class Preprocessor {
 				} else {
 					// Optional keyword args
 					if (str.contains("=")) {
-						String[] keyVal = str.split("=", 2);
+						String[] keyVal = eqlpattern.split(str, 2);
 						if (def.getDefArgs().containsKey(keyVal[0])) {
 							//FIXME eliminate stripMatchingQuotes later
 							//we want to pass the value verbatim, but this is dropping quotes

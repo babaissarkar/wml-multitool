@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.regex.Pattern;
 
 import com.babai.wml.config.Config;
 import com.babai.wml.config.ConfigAttributeBase;
@@ -20,6 +21,7 @@ import com.babai.wml.preprocessor.Definition;
 import com.babai.wml.utils.Table;
 
 public class DataExtractor {
+	private final static Pattern linepattern = Pattern.compile("\\R");
 	
 	public static void writeUnitTypeData(HashSet<Config> unitTypeData, Path unitTypeOutPath) {
 		final String[] UNIT_TYPE_COLUMNS = {
@@ -209,7 +211,7 @@ public class DataExtractor {
 		
 		boolean paraStarted = true;
 		docBuff.append("<p class='macro-explanation'>");
-		for (String line : docs.split("\\R")) {
+		for (String line : linepattern.split(docs)) {
 			if (line.isEmpty()) {
 				// insert para break
 				docBuff.append("</p><p>");

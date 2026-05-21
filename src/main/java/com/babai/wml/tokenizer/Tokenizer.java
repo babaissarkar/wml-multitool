@@ -9,12 +9,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import com.babai.wml.utils.AIGenerated;
 import com.babai.wml.utils.Position;
 
 
-public final class Tokenizer {	
+public final class Tokenizer {
+	private final static Pattern linepattern = Pattern.compile("\\R");
+	
 	public static List<Token> tokenize(Path inputPath) throws IOException {
 		return tokenize(Files.newBufferedReader(inputPath));
 	}
@@ -249,7 +252,7 @@ public final class Tokenizer {
 			tokens.add(new Token(contents, kind, start.line(), start.col()));
 
 			// -1 is needed so trailing lines aren't lost
-			String[] parts = contents.split("\\R", -1);
+			String[] parts = linepattern.split(contents, -1);
 
 			if (parts.length == 1) {
 				start.forward(contents.length());
