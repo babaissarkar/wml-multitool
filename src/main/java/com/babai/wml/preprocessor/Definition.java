@@ -2,6 +2,7 @@ package com.babai.wml.preprocessor;
 
 import static com.babai.wml.cli.ANSIFormatter.colorify;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,12 +10,15 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.babai.wml.parser.ParseUtils;
+import com.babai.wml.tokenizer.Token;
 import com.babai.wml.utils.Colors;
+import static com.babai.wml.tokenizer.Tokenizer.tokenize;
 
 public class Definition {
 	private String name, value, docs = "";
 	private List<String> args = new ArrayList<>();
 	private HashMap<String, String> defArgs = new HashMap<>();
+	private List<Token> cachedValueTokens;
 	
 	private boolean deprecated;
 	private int deprecationLevel;
@@ -57,6 +61,17 @@ public class Definition {
 
 	public String getValue() {
 		return this.value;
+	}
+
+	public List<Token> getValueTokens() {
+		if (cachedValueTokens == null) {
+			try {
+				cachedValueTokens = tokenize(value);
+			} catch (IOException e) {
+				cachedValueTokens = List.of();
+			}
+		}
+		return cachedValueTokens;
 	}
 	
 	public int getArgCount() {

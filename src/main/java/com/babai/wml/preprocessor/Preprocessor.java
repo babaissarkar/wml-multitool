@@ -8,10 +8,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -41,7 +42,9 @@ public class Preprocessor {
 	private HashMap<String, String> fileExplanations = new LinkedHashMap<>();
 
 	// format: macroName, positionString
-	private HashSet<Pair<String, String>> nonexistentMacros = new HashSet<>();
+	private LinkedHashMap<String, String> nonexistentMacros = new LinkedHashMap<>();
+	private final Set<Path> activeIncludeStack = new HashSet<>();
+	private final LinkedHashMap<Path, String> includeCache = new LinkedHashMap<>();
 	private boolean listFilesInInfo = false;
 
 	// toplevel
@@ -85,13 +88,17 @@ public class Preprocessor {
 	// Can handle both file or folder
 	// TODO _initial & _final.cfg
 	public String preprocess(Path path) {
+		return preprocess(path, false);
+	}
+
+	private String preprocess(Path path, boolean useIncludeCache) {
 		StringBuilder out = new StringBuilder();
 		String coloredPath = colorify(path.toString(), filePathColor);
 		if (Files.isDirectory(path)) {
 			debugPrint("Including directory: " + coloredPath);
 			Path main = path.resolve("_main.cfg");
 			if (Files.exists(main)) {
-				out.append(preprocessFile(main));
+				out.append(preprocessFile(main, useIncludeCache));
 			} else {
 				Predicate<? super Path> filter = entry ->
 					Files.isDirectory(entry)
@@ -103,13 +110,13 @@ public class Preprocessor {
 						.sorted(Comparator
 								.comparingInt((Path p) -> Files.isDirectory(p) ? 1 : 0)
 								.thenComparing(Comparator.naturalOrder()))
-						.forEach(p -> out.append(preprocess(p)));
+						.forEach(p -> out.append(preprocess(p, useIncludeCache)));
 				} catch (IOException e) {
 					errorPrint("Cannot find " + path + ", skipping.");
 				}
 			}
 		} else {
-			out.append(preprocessFile(path));
+			out.append(preprocessFile(path, useIncludeCache));
 		}
 
 		// linebreak so outputs from different files are separated
@@ -117,9 +124,26 @@ public class Preprocessor {
 	}
 
 	public String preprocessFile(Path path) {
+		return preprocessFile(path, false);
+	}
+
+	private String preprocessFile(Path path, boolean useIncludeCache) {
+		Path normalizedPath = path.toAbsolutePath().normalize();
+		if (useIncludeCache && includeCache.containsKey(normalizedPath)) {
+			return includeCache.get(normalizedPath);
+		}
+		if (useIncludeCache && activeIncludeStack.contains(normalizedPath)) {
+			warningPrint("Skipping cyclic include: " + colorify(normalizedPath.toString(), filePathColor));
+			return "";
+		}
+
 		int prevMacroCount = this.defines.rowCount();
 		String coloredPath = colorify(path.toAbsolutePath().toString(), filePathColor);
+		Path previousPath = this.currentPath;
 		this.currentPath = path;
+		if (useIncludeCache) {
+			activeIncludeStack.add(normalizedPath);
+		}
 
 		debugPrint("Preprocessing: " + coloredPath);
 
@@ -137,6 +161,14 @@ public class Preprocessor {
 			}
 		} catch (IOException e) {
 			errorPrint("Cannot find " + path + ", skipping.");
+		} finally {
+			this.currentPath = previousPath;
+			if (useIncludeCache) {
+				activeIncludeStack.remove(normalizedPath);
+			}
+		}
+		if (useIncludeCache) {
+			includeCache.put(normalizedPath, out);
 		}
 		return out;
 	}
@@ -166,14 +198,17 @@ public class Preprocessor {
 			buff.append(processToken(itor, t, currentDefineArgs, true));
 		}
 
-		for (var pair : nonexistentMacros) {
-			warningPrint(pair.second() + " undefined macro " + colorify(pair.first(), RED));
+		for (var entry : nonexistentMacros.entrySet()) {
+			warningPrint(entry.getValue() + " undefined macro " + colorify(entry.getKey(), RED));
 		}
 
 		return buff.toString();
 	}
 
 	private String preprocessFragment(String fragment, List<String> args) {
+		if (!(fragment.contains("{") && fragment.contains("}"))) {
+			return fragment;
+		}
 		try {
 			var buff = new StringBuilder();
 			var itor = tokenize(fragment).listIterator();
@@ -186,6 +221,17 @@ public class Preprocessor {
 		} catch (IOException e) {
 			return fragment; // shouldn't happen with StringReader
 		}
+	}
+
+	private String preprocessTokens(List<Token> tokens, List<String> args) {
+		var buff = new StringBuilder();
+		var itor = tokens.listIterator();
+		while (itor.hasNext()) {
+			Token t = itor.next();
+			boolean expand = !args.contains(t.content());
+			buff.append(processToken(itor, t, args, expand));
+		}
+		return buff.toString();
 	}
 
 	private String handleDocComment(ListIterator<Token> itor) {
@@ -367,7 +413,7 @@ public class Preprocessor {
 
 		} else if (directiveHeader.head().equals("ifdef")) {
 			// TODO complain if ifdef does not exactly has one arg (macroname)
-			boolean hasMacro = !defines.getRows("Name", directiveArgs[0]).isEmpty();
+			boolean hasMacro = defines.hasValue("Name", directiveArgs[0]);
 			if (hasMacro) {
 				skipElse = true;
 			} else {
@@ -377,7 +423,7 @@ public class Preprocessor {
 			}
 		} else if (directiveHeader.head().equals("ifndef")) {
 			// TODO complain if ifndef does not exactly has one arg (macroname)
-			boolean hasMacro = !defines.getRows("Name", directiveArgs[0]).isEmpty();
+			boolean hasMacro = defines.hasValue("Name", directiveArgs[0]);
 			if (hasMacro) {
 				// skip upto #else or #endif
 				skipUntilEndDirective2("else", "endif", itor);
@@ -430,7 +476,7 @@ public class Preprocessor {
 			debugPrint(msg.formatted(coloredPath));
 		}
 
-		return preprocess(p);
+		return preprocess(p, true);
 	}
 
 	private String expandMacroCall(Token macroCall, List<String> possibleArgs) {
@@ -442,11 +488,11 @@ public class Preprocessor {
 
 		// ---------------------------------------
 
-		List<Table.Row> rows = defines.getRows("Name", macroName);
+		Table.Row row = defines.getFirstRow("Name", macroName);
 		Definition def = null;
-		if (!rows.isEmpty()) {
-			nonexistentMacros.removeIf(m -> m.first().equals(macroName));
-			def = (Definition) rows.get(0).getColumn("Definition").getValue();
+		if (row != null) {
+			nonexistentMacros.remove(macroName);
+			def = (Definition) row.getColumn("Definition").getValue();
 		}
 
 		if (def != null) {
@@ -505,18 +551,22 @@ public class Preprocessor {
 			argsList.addAll(def.getArgs());
 			def.getDefArgs().keySet().forEach(k -> argsList.add(k));
 
-			try {
-				String out = def.getValue();
+				try {
+					String out = def.getValue();
 
-				// substitute args
-				if (out.contains("{")) {
-					out = def.expand(args, defArgs);
-				}
-				// substitute macros
-				if (out.contains("{")) {
-					out = preprocessFragment(out, argsList);
-				}
-				return out;
+					// substitute args
+					if (out.contains("{")) {
+						out = def.expand(args, defArgs);
+					}
+					// substitute macros
+					if (out.contains("{")) {
+						if (def.getArgCount() == 0 && def.getDefArgCount() == 0 && out.equals(def.getValue())) {
+							out = preprocessTokens(def.getValueTokens(), argsList);
+						} else {
+							out = preprocessFragment(out, argsList);
+						}
+					}
+					return out;
 			} catch(IllegalArgumentException e) {
 				errorPrint("Error expanding macro " + def.coloredName()
 					+ " in "
@@ -530,7 +580,7 @@ public class Preprocessor {
 			// FIXME: do nothing for now. may need checks later.
 			return macroCall.raw();
 		} else {
-			nonexistentMacros.add(new Pair<>(macroName, position(macroCall, currentPath.toString())));
+			nonexistentMacros.putIfAbsent(macroName, position(macroCall, currentPath.toString()));
 			return macroCall.raw();
 		}
 	}
@@ -543,8 +593,6 @@ public class Preprocessor {
 		}
 		return argVal;
 	}
-
-	private record Pair<F, S>(F first, S second) {};
 
 	private record DirectiveHeader(String head, String[] args) {
 		// processDirectiveNameAndArgs

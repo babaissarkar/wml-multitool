@@ -185,6 +185,28 @@ public final class Table {
 		return result;
 	}
 
+	/** Fast existence check by indexed column without row list allocation. */
+	public boolean hasValue(String colName, Object value) {
+		int col = getColumnIndex(colName);
+		Map<Object, List<Cell<?>>> idx = indices.get(col);
+		if (idx == null)
+			throw new IllegalStateException("Column not indexed: " + colName);
+		List<Cell<?>> cells = idx.get(value);
+		return cells != null && !cells.isEmpty();
+	}
+
+	/** Fast first-row lookup by indexed column without materializing all rows. */
+	public Row getFirstRow(String colName, Object value) {
+		int col = getColumnIndex(colName);
+		Map<Object, List<Cell<?>>> idx = indices.get(col);
+		if (idx == null)
+			throw new IllegalStateException("Column not indexed: " + colName);
+		List<Cell<?>> cells = idx.get(value);
+		if (cells == null || cells.isEmpty())
+			return null;
+		return cells.get(0).parentRow;
+	}
+
 	public List<Row> getRows() {
 		return rows;
 	}
