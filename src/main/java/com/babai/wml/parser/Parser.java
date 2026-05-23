@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 
@@ -18,7 +17,6 @@ import static com.babai.wml.utils.LogUtils.*;
 import static com.babai.wml.cli.ANSIFormatter.colorify;
 import static com.babai.wml.tokenizer.Tokenizer.tokenize;
 import static com.babai.wml.tokenizer.Token.Kind.*;
-import static com.babai.wml.parser.ParseUtils.peek;
 
 public class Parser {
 	private final static Pattern nottagpattern = Pattern.compile("[^a-z_\\d]|^\\d", Pattern.CASE_INSENSITIVE);
@@ -32,21 +30,23 @@ public class Parser {
 	}
 
 	public void parse(String text) throws IOException {
-		var itor = tokenize(new StringReader(text)).listIterator();
-		while (itor.hasNext()) {
-			Token t = itor.next();
-			parseToken(itor, t);
+		Token[] tokens = tokenize(new StringReader(text)).toArray(Token[]::new);
+		for (int i=0; i<tokens.length; ) {
+			Token t = tokens[i++];
+			int[] idx = {i};
+			parseToken(tokens, idx, t);
+			i = idx[0];
 		}
 	}
 
-	private void parseToken(ListIterator<Token> itor, Token t) {
+	private void parseToken(Token[] tokens, int[] idx, Token t) {
 		switch (t.kind()) {
 		case TEXT -> {
 			var line = new StringBuilder();
 
 			line.append(t.content());
-			while (peek(itor).isKind(TEXT, WHITESPACE, QUOTED, ANGLE_QUOTED)) {
-				t = itor.next();
+			while (idx[0] < tokens.length && tokens[idx[0]].isKind(TEXT, WHITESPACE, QUOTED, ANGLE_QUOTED)) {
+				t = tokens[idx[0]++];
 				line.append(t.content());
 			}
 

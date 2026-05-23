@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -145,25 +144,26 @@ public class Preprocessor {
 	public String preprocessContent(Reader reader) throws IOException {
 		var buff = new StringBuilder();
 
-		var itor = tokenize(reader).listIterator();
+		Token[] tokens = tokenize(reader).toArray(Token[]::new);
+		int[] idx = {0};
 
-		skip(itor, EOL);
+		skip(tokens, idx, EOL);
 
-		skip(itor, WHITESPACE);
+		skip(tokens, idx, WHITESPACE);
 
 		String textdomain;
-		if (peek(itor).isDirectiveName("textdomain", true)) {
-			Token t = itor.next();
+		if (peek(tokens, idx).isDirectiveName("textdomain", true)) {
+			Token t = next(tokens, idx);
 			var directiveHeader = DirectiveHeader.parse(t, currentPath.toString());
 			textdomain = directiveHeader.args()[0];
 			debugPrint("Textdomain: " + textdomain);
 		}
 
-		fileExplanations.put(currentPath.toUri().toString(), handleDocComment(itor));
+		fileExplanations.put(currentPath.toUri().toString(), handleDocComment(tokens, idx));
 
-		while (itor.hasNext()) {
-			Token t = itor.next();
-			buff.append(processToken(itor, t, currentDefineArgs, true));
+		for (; idx[0] < tokens.length; ) {
+			Token t = next(tokens, idx);
+			buff.append(processToken(tokens, idx, t, currentDefineArgs, true));
 		}
 
 		for (var pair : nonexistentMacros) {
@@ -176,11 +176,13 @@ public class Preprocessor {
 	private String preprocessFragment(String fragment, List<String> args) {
 		try {
 			var buff = new StringBuilder();
-			var itor = tokenize(fragment).listIterator();
-			while (itor.hasNext()) {
-				Token t = itor.next();
+			Token[] tokens = tokenize(fragment).toArray(Token[]::new);
+			for (int i = 0; i < tokens.length; ) {
+				Token t = tokens[i++];
+				int[] idx = {i};
 				boolean expand = !args.contains(t.content());
-				buff.append(processToken(itor, t, args, expand));
+				buff.append(processToken(tokens, idx, t, args, expand));
+				i = idx[0];
 			}
 			return buff.toString();
 		} catch (IOException e) {
@@ -188,33 +190,33 @@ public class Preprocessor {
 		}
 	}
 
-	private String handleDocComment(ListIterator<Token> itor) {
-		skip(itor, EOL);
+	private String handleDocComment(Token[] tokens, int[] idx) {
+		skip(tokens, idx, EOL);
 
-		skip(itor, WHITESPACE);
+		skip(tokens, idx, WHITESPACE);
 
 		var docBuff = new StringBuilder();
-		while (peek(itor).isKind(COMMENT) && !peek(itor).isDirective()) {
-			Token t = itor.next();
+		while (peek(tokens, idx).isKind(COMMENT) && !peek(tokens, idx).isDirective()) {
+			Token t = next(tokens, idx);
 			if (t.isDirective()) break;
 			docBuff.append(t.content().trim());
-			if (peek(itor).isKind(EOL)) {
-				t = itor.next();
+			if (peek(tokens, idx).isKind(EOL)) {
+				t = next(tokens, idx);
 				docBuff.append(t.content());
 			}
-			skip(itor, WHITESPACE);
+			skip(tokens, idx, WHITESPACE);
 		}
 		return docBuff.toString().trim();
 	}
 
-	private String processToken(ListIterator<Token> itor, Token t, List<String> currentArgs, boolean expandMacro) {
+	private String processToken(Token[] tokens, int[] idx, Token t, List<String> currentArgs, boolean expandMacro) {
 		String content = t.content();
 		if (t.isKind(COMMENT)) {
 			if (t.isDirective()) {
-				handleDirective(t, itor, currentPath.toUri().toString());
+				handleDirective(t, tokens, idx, currentPath.toUri().toString());
 				// suppress empty whitespace & linebreaks after directive lines
-				skip(itor, WHITESPACE);
-				skip(itor, EOL);
+				skip(tokens, idx, WHITESPACE);
+				skip(tokens, idx, EOL);
 			}
 
 			return "";
@@ -238,12 +240,12 @@ public class Preprocessor {
 		}
 	}
 
-	private String consumeUntilEndDirective(String directiveName, ListIterator<Token> itor) {
+	private String consumeUntilEndDirective(String directiveName, Token[] tokens, int[] idx) {
 		StringBuilder body = new StringBuilder();
-		if (!itor.hasNext()) return "";
-		Token t = itor.next();
+		if (idx[0] >= tokens.length) return "";
+		Token t = next(tokens, idx);
 		while (!t.isDirectiveName(directiveName, false)) {
-			if (!itor.hasNext()) {
+			if (idx[0] >= tokens.length) {
 				// terminated before define completed, error
 				errorPrint("End directive "
 						+ colorify(directiveName, directiveColor)
@@ -252,23 +254,23 @@ public class Preprocessor {
 			} else {
 				// we don't want to expand any macro calls in body when consuming directive body,
 				// but rather when that directive is called later on. (ie. lazy not eager behavior)
-				body.append(processToken(itor, t, currentDefineArgs, false));
-				if (!itor.hasNext()) return body.toString();
-				t = itor.next();
+				body.append(processToken(tokens, idx, t, currentDefineArgs, false));
+				if (idx[0] >= tokens.length) return body.toString();
+				t = next(tokens, idx);
 			}
 		}
 		return body.toString();
 	}
 
-	private void skipUntilEndDirective(String endDir, ListIterator<Token> itor) {
-		skipUntilEndDirective2(endDir, endDir, itor);
+	private void skipUntilEndDirective(String endDir, Token[] tokens, int[] idx) {
+		skipUntilEndDirective2(endDir, endDir, tokens, idx);
 	}
 
-	private void skipUntilEndDirective2(String endDir1, String endDir2, ListIterator<Token> itor) {
-		if (!itor.hasNext()) return;
-		Token t = itor.next();
+	private void skipUntilEndDirective2(String endDir1, String endDir2, Token[] tokens, int[] idx) {
+		if (idx[0] >= tokens.length) return;
+		Token t = next(tokens, idx);
 		while (!(t.isDirectiveName(endDir1, false) || t.isDirectiveName(endDir2, false))) {
-			if (!itor.hasNext()) {
+			if (idx[0] >= tokens.length) {
 				// terminated before define completed, error
 				errorPrint("End directives "
 						+ colorify(endDir1, directiveColor)
@@ -277,14 +279,14 @@ public class Preprocessor {
 						+ " not found. Pos: " + position(t, currentPath.toString()));
 				return;
 			} else {
-				if (!itor.hasNext()) return;
-				t = itor.next();
+				if (idx[0] >= tokens.length) return;
+				t = next(tokens, idx);
 			}
 		}
 		return;
 	}
 
-	private void handleDirective(Token directiveStart, ListIterator<Token> itor, String pathUri) {
+	private void handleDirective(Token directiveStart, Token[] tokens, int[] idx, String pathUri) {
 		var directiveHeader = DirectiveHeader.parse(directiveStart, currentPath.toString());
 		var directiveArgs = directiveHeader.args();
 
@@ -293,16 +295,16 @@ public class Preprocessor {
 			String macroName = directiveArgs[0];
 			List<String> macroArgs = Arrays.asList(directiveArgs).subList(1, directiveArgs.length);
 
-			skip(itor, EOL, WHITESPACE);
+			skip(tokens, idx, EOL, WHITESPACE);
 
 			// Macro deprecation messages
 			boolean isDeprecated = false;
 			int depreLevel = 0;
 			String removalVersion = "";
 			String depreMessage = "";
-			while (peek(itor).isDirectiveName("deprecated", true)) {
+			while (peek(tokens, idx).isDirectiveName("deprecated", true)) {
 				debugPrint("Deprecated macro: " + macroName);
-				Token t = itor.next();
+				Token t = next(tokens, idx);
 				isDeprecated = true;
 				var deprecationHeader = DirectiveHeader.parse(t, currentPath.toString());
 				var depreArgs = deprecationHeader.args();
@@ -325,24 +327,24 @@ public class Preprocessor {
 					}
 				}
 
-				skip(itor, EOL, WHITESPACE);
+				skip(tokens, idx, EOL, WHITESPACE);
 			}
 
-			String doc = handleDocComment(itor);
+			String doc = handleDocComment(tokens, idx);
 
-			skip(itor, EOL, WHITESPACE);
+			skip(tokens, idx, EOL, WHITESPACE);
 
 			// defargs processing
 			var macroDefaultArgs = new LinkedHashMap<String, String>();
-			while (peek(itor).isDirectiveName("arg", true)) {
-				Token t = itor.next();
+			while (peek(tokens, idx).isDirectiveName("arg", true)) {
+				Token t = next(tokens, idx);
 				String defArgName = DirectiveHeader.parse(t, currentPath.toString()).args()[0]; // arg NAME
 
-				skip(itor, EOL);
+				skip(tokens, idx, EOL);
 
-				macroDefaultArgs.put(defArgName, consumeUntilEndDirective("endarg", itor));
+				macroDefaultArgs.put(defArgName, consumeUntilEndDirective("endarg", tokens, idx));
 
-				skip(itor, EOL, WHITESPACE);
+				skip(tokens, idx, EOL, WHITESPACE);
 			}
 
 			// Body
@@ -351,7 +353,7 @@ public class Preprocessor {
 			currentDefineArgs.addAll(macroArgs);
 			macroDefaultArgs.forEach((k, v) -> currentDefineArgs.add(k));
 
-			var def = new Definition(macroName, consumeUntilEndDirective("enddef", itor), macroArgs, macroDefaultArgs);
+			var def = new Definition(macroName, consumeUntilEndDirective("enddef", tokens, idx), macroArgs, macroDefaultArgs);
 
 			currentDefineArgs.clear(); // clear arg context
 
@@ -372,7 +374,7 @@ public class Preprocessor {
 				skipElse = true;
 			} else {
 				// skip upto #else or #endif
-				skipUntilEndDirective2("else", "endif", itor);
+				skipUntilEndDirective2("else", "endif", tokens, idx);
 				skipElse = false;
 			}
 		} else if (directiveHeader.head().equals("ifndef")) {
@@ -380,17 +382,23 @@ public class Preprocessor {
 			boolean hasMacro = !defines.getRows("Name", directiveArgs[0]).isEmpty();
 			if (hasMacro) {
 				// skip upto #else or #endif
-				skipUntilEndDirective2("else", "endif", itor);
+				skipUntilEndDirective2("else", "endif", tokens, idx);
 				skipElse = false;
 			} else {
 				skipElse = true;
 			}
 		} else if (directiveHeader.head().equals("else")) {
 			if (skipElse) {
-				skipUntilEndDirective("endif", itor);
+				skipUntilEndDirective("endif", tokens, idx);
 				skipElse = false;
 			}
 		}
+	}
+
+	private Token next(Token[] tokens, int[] idx) { return tokens[idx[0]++]; }
+	private Token peek(Token[] tokens, int[] idx) { return idx[0] < tokens.length ? tokens[idx[0]] : Token.Empty; }
+	private void skip(Token[] tokens, int[] idx, Token.Kind... kinds) {
+		while (idx[0] < tokens.length && peek(tokens, idx).isKind(kinds)) idx[0]++;
 	}
 
 	private boolean isPath(String str) {

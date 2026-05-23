@@ -8,7 +8,6 @@ import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Pattern;
 
 import com.babai.wml.utils.AIGenerated;
@@ -18,17 +17,17 @@ import com.babai.wml.utils.Position;
 public final class Tokenizer {
 	private final static Pattern linepattern = Pattern.compile("\\R");
 	
-	public static List<Token> tokenize(Path inputPath) throws IOException {
+	public static ArrayList<Token> tokenize(Path inputPath) throws IOException {
 		return tokenize(Files.newBufferedReader(inputPath));
 	}
 	
-	public static List<Token> tokenize(String content) throws IOException {
+	public static ArrayList<Token> tokenize(String content) throws IOException {
 		return tokenize(new BufferedReader(new StringReader(content)));
 	}
 
-	public static List<Token> tokenize(Reader reader) throws IOException {
+	public static ArrayList<Token> tokenize(Reader reader) throws IOException {
 		PushbackReader r = new PushbackReader(reader);
-		List<Token> tokens = new ArrayList<>();
+		ArrayList<Token> tokens = new ArrayList<>();
 		StringBuilder buff = new StringBuilder();
 		State state = State.NORMAL;
 		Position start = Position.start();
@@ -234,7 +233,7 @@ public final class Tokenizer {
 		return buff.toString();
 	}
 
-	private static void handleEOLToken(List<Token> tokens, char c, PushbackReader r, Position start) throws IOException {
+	private static void handleEOLToken(ArrayList<Token> tokens, char c, PushbackReader r, Position start) throws IOException {
 		if (c == '\r') {
 			char c2 = (char) r.read();
 			if (c2 == '\n') {
@@ -247,7 +246,7 @@ public final class Tokenizer {
 		}
 	}
 
-	private static void finalizeAndAddToken(List<Token> tokens, String contents, Token.Kind kind, Position start) {
+	private static void finalizeAndAddToken(ArrayList<Token> tokens, String contents, Token.Kind kind, Position start) {
 		if (!contents.isEmpty() || kind == Token.Kind.COMMENT) {
 			tokens.add(new Token(contents, kind, start.line(), start.col()));
 
@@ -265,7 +264,7 @@ public final class Tokenizer {
 		}
 	}
 
-	private static void finalizeAndAddToken(List<Token> tokens, StringBuilder buff, Token.Kind kind, Position start) {
+	private static void finalizeAndAddToken(ArrayList<Token> tokens, StringBuilder buff, Token.Kind kind, Position start) {
 		finalizeAndAddToken(tokens, buff.toString(), kind, start);
 		if (!buff.isEmpty()) {
 			buff.delete(0, buff.length());
@@ -273,8 +272,8 @@ public final class Tokenizer {
 	}
 
 	@AIGenerated
-	public static List<Token> mergeConcatenations(List<Token> tokens) {
-		List<Token> result = new ArrayList<>();
+	public static ArrayList<Token> mergeConcatenations(ArrayList<Token> tokens) {
+		ArrayList<Token> result = new ArrayList<>();
 		int i = 0;
 
 		while (i < tokens.size()) {
