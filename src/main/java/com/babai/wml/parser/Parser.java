@@ -1,7 +1,6 @@
 package com.babai.wml.parser;
 
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -32,7 +31,7 @@ public class Parser {
 	}
 
 	public void parse(String text) throws IOException {
-		var itor = tokenize(new StringReader(text)).listIterator();
+		var itor = tokenize(text).listIterator();
 		while (itor.hasNext()) {
 			Token t = itor.next();
 			parseToken(itor, t);

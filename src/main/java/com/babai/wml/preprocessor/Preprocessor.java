@@ -1,7 +1,6 @@
 package com.babai.wml.preprocessor;
 
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -129,7 +128,7 @@ public class Preprocessor {
 
 		String out = "";
 		try {
-			out = preprocessContent(Files.newBufferedReader(path));
+			out = preprocessContent(Files.readString(path));
 			int newMacroCount = this.defines.rowCount() - prevMacroCount;
 
 			String msg = "Preprocessed %s" + (newMacroCount > 0 ? ": " + newMacroCount + " macros" : "");
@@ -146,10 +145,10 @@ public class Preprocessor {
 	}
 
 	// Can only deal with a file
-	public String preprocessContent(Reader reader) throws IOException {
+	public String preprocessContent(String content) throws IOException {
 		var buff = new StringBuilder();
 
-		var itor = tokenize(reader).listIterator();
+		var itor = tokenize(content).listIterator();
 
 		skip(itor, EOL);
 
@@ -189,7 +188,7 @@ public class Preprocessor {
 			}
 			return buff.toString();
 		} catch (IOException e) {
-			return fragment; // shouldn't happen with StringReader
+			return fragment; // shouldn't happen
 		}
 	}
 

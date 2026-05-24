@@ -1,10 +1,6 @@
 package com.babai.wml.tokenizer;
 
-import java.io.Reader;
 import java.io.IOException;
-import java.io.BufferedReader;
-import java.io.PushbackReader;
-import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -18,25 +14,27 @@ import com.babai.wml.utils.Position;
 public final class Tokenizer {
 	private final static Pattern linepattern = Pattern.compile("\\R");
 	
+	private enum State { NORMAL, LINE_COMMENT, WS };
+
 	public static List<Token> tokenize(Path inputPath) throws IOException {
-		return tokenize(Files.newBufferedReader(inputPath));
-	}
-	
-	public static List<Token> tokenize(String content) throws IOException {
-		return tokenize(new BufferedReader(new StringReader(content)));
+		return tokenize(Files.readString(inputPath));
 	}
 
-	public static List<Token> tokenize(Reader reader) throws IOException {
-		PushbackReader r = new PushbackReader(reader);
+	public static List<Token> tokenize(String content) throws IOException {
+		return tokenize(content.toCharArray());
+	}
+
+	public static List<Token> tokenize(char[] input) throws IOException {
+		CharCursor r = new CharCursor(input);
 		List<Token> tokens = new ArrayList<>();
 		StringBuilder buff = new StringBuilder();
 		State state = State.NORMAL;
 		Position start = Position.start();
 
 		int ch;
-		while((ch = r.read()) != -1) {
+		while ((ch = r.read()) != -1) {
 			char c = (char) ch;
-			switch(state) {
+			switch (state) {
 			case NORMAL -> {
 				if (c == '#') {
 					finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
@@ -109,10 +107,7 @@ public final class Tokenizer {
 			}
 		}
 
-
 		if (ch == -1 && !buff.isEmpty()) {
-			// file terminated in the middle of content, finish tokens
-			// TODO maybe throw exception to warn about the issue.
 			if (state == State.NORMAL) {
 				finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
 			} else if (state == State.LINE_COMMENT) {
@@ -125,26 +120,19 @@ public final class Tokenizer {
 		return mergeConcatenations(tokens);
 	}
 
-	// TODO detect mismatched quotes
-	// Note: this assumes that r is currently at the character '"' (dbl quote)
-	// Note: we are skipping " from the token text itself, unless escaped by "".
-	// Can be deduced from token kind if needed. 
-	private static String readQuoteToken(PushbackReader r) throws IOException {
+	private static String readQuoteToken(CharCursor r) {
 		char prevChar = '"';
 		var buff = new StringBuilder();
 		int ch;
-		while((ch = r.read()) != -1) {
+		while ((ch = r.read()) != -1) {
 			char c = (char) ch;
 			if (prevChar == '"' && c == '"') {
 				if (buff.isEmpty()) {
-					// trivial case: "" (empty string), do nothing, terminate
 					return "";
 				} else {
-					// back to back quotes: "text""text", add only one "
 					buff.append(c);
 				}
 			} else if (prevChar != '"' && c == '"') {
-				// terminate quote token
 				int c2 = r.read();
 				if (c2 == -1) break;
 				char ch2 = (char) c2;
@@ -158,27 +146,26 @@ public final class Tokenizer {
 		return buff.toString();
 	}
 
-	// Note: this assumes that r is currently at the character '<' (greater than)
-	// Note: we are skipping << and >> from the token text itself, can be deduced from token kind
-	// TODO throw exception if mismatched
-	private static String readAngleQuoteToken(PushbackReader r) throws IOException {
+	private static String readAngleQuoteToken(CharCursor r) {
 		var buff = new StringBuilder();
 		int ch = r.read();
-		if (((char) ch) != '<') {
-			r.unread(ch);
-			// << not matched, char after < not another <, bail out
+		if (ch == -1 || ((char) ch) != '<') {
+			if (ch != -1) {
+				r.unread((char) ch);
+			}
 			return "";
 		}
 
-		while((ch = r.read()) != -1) {
+		while ((ch = r.read()) != -1) {
 			char c = (char) ch;
 			if (c == '>') {
 				ch = r.read();
-				if (((char) ch) == '>') {
-					// >> detected, exit
+				if (ch != -1 && ((char) ch) == '>') {
 					break;
 				} else {
-					r.unread(ch);
+					if (ch != -1) {
+						r.unread((char) ch);
+					}
 				}
 				buff.append(c);
 			} else {
@@ -188,26 +175,22 @@ public final class Tokenizer {
 		return buff.toString();
 	}
 
-	// Note: this assumes that r is currently at the character '{' (greater than)
-	// Note: we are skipping { and } from the token text itself, can be deduced from token kind
-	// TODO throw exception if mismatched or prematurely terminates
-	// TODO what about { inside quotes? like {HELLO "some{weirdo"}
-	private static String readMacroToken(PushbackReader r) throws IOException {
+	private static String readMacroToken(CharCursor r) {
 		var buff = new StringBuilder();
 		int ch;
-		int nlvl = 0; // nesting level
+		int nlvl = 0;
 
-		while((ch = r.read()) != -1) {
+		while ((ch = r.read()) != -1) {
 			char c = (char) ch;
 			if (c == '{') {
 				nlvl++;
-				buff.append(c); // keep inner braces
+				buff.append(c);
 			} else if (c == '}') {
 				if (nlvl == 0) {
 					break;
 				} else {
 					nlvl--;
-					buff.append(c); // keep inner braces
+					buff.append(c);
 				}
 			} else {
 				buff.append(c);
@@ -215,15 +198,11 @@ public final class Tokenizer {
 		}
 		return buff.toString();
 	}
-	
-	// Note: this assumes that r is currently at the character '['
-	// Note: we are skipping [ and ] from the token text itself, can be deduced from token kind
-	// TODO throw exception if mismatched or prematurely terminates
-	// TODO edge cases...
-	private static String readTagToken(PushbackReader r) throws IOException {
+
+	private static String readTagToken(CharCursor r) {
 		var buff = new StringBuilder();
 		int ch;
-		while((ch = r.read()) != -1) {
+		while ((ch = r.read()) != -1) {
 			char c = (char) ch;
 			if (c == ']') {
 				break;
@@ -234,13 +213,16 @@ public final class Tokenizer {
 		return buff.toString();
 	}
 
-	private static void handleEOLToken(List<Token> tokens, char c, PushbackReader r, Position start) throws IOException {
+	private static void handleEOLToken(List<Token> tokens, char c, CharCursor r, Position start) {
 		if (c == '\r') {
-			char c2 = (char) r.read();
-			if (c2 == '\n') {
+			int c2 = r.read();
+			if (c2 != -1 && ((char) c2) == '\n') {
 				finalizeAndAddToken(tokens, "\r\n", Token.Kind.EOL, start);
 			} else {
-				r.unread(c2);
+				if (c2 != -1) {
+					r.unread((char) c2);
+				}
+				finalizeAndAddToken(tokens, "\r", Token.Kind.EOL, start);
 			}
 		} else {
 			finalizeAndAddToken(tokens, "" + c, Token.Kind.EOL, start);
@@ -250,10 +232,7 @@ public final class Tokenizer {
 	private static void finalizeAndAddToken(List<Token> tokens, String contents, Token.Kind kind, Position start) {
 		if (!contents.isEmpty() || kind == Token.Kind.COMMENT) {
 			tokens.add(new Token(contents, kind, start.line(), start.col()));
-
-			// -1 is needed so trailing lines aren't lost
 			String[] parts = linepattern.split(contents, -1);
-
 			if (parts.length == 1) {
 				start.forward(contents.length());
 			} else {
@@ -276,32 +255,23 @@ public final class Tokenizer {
 	public static List<Token> mergeConcatenations(List<Token> tokens) {
 		List<Token> result = new ArrayList<>();
 		int i = 0;
-
 		while (i < tokens.size()) {
 			Token current = tokens.get(i);
-
-			// Only TEXT or QUOTED can start a concat chain
 			if (isConcatCandidate(current)) {
-
 				StringBuilder merged = new StringBuilder(current.content());
 				Token.Kind resultingKind = current.kind();
 				Token previousOperand = current;
-
 				int j = i + 1;
-
 				while (j < tokens.size()) {
-
 					int k = j;
 					while (k < tokens.size() && tokens.get(k).isKind(Token.Kind.WHITESPACE)) k++;
 
 					if (k >= tokens.size() || !isPlus(tokens.get(k))) break;
-
 					k++;
 
 					while (k < tokens.size() && tokens.get(k).isKind(Token.Kind.WHITESPACE)) k++;
 
 					if (k >= tokens.size()) break;
-
 					Token next = tokens.get(k);
 					if (!isConcatCandidate(next)) break;
 
@@ -311,13 +281,11 @@ public final class Tokenizer {
 					{
 						merged.append(" ");
 					}
-
 					merged.append(next.content());
 
 					if (next.isKind(Token.Kind.QUOTED)) {
 						resultingKind = Token.Kind.QUOTED;
 					}
-
 					previousOperand = next;
 					j = k + 1;
 				}
@@ -328,10 +296,9 @@ public final class Tokenizer {
 				i++;
 			}
 		}
-
 		return result;
 	}
-	
+
 	private static boolean isConcatCandidate(Token t) {
 		return t.isKind(Token.Kind.TEXT, Token.Kind.QUOTED);
 	}
@@ -348,6 +315,23 @@ public final class Tokenizer {
 		return Character.isWhitespace(c) && !isEOL(c);
 	}
 
+	private static final class CharCursor {
+		private final char[] input;
+		private int idx = 0;
+		private int pushback = -1;
 
-	private enum State { NORMAL, LINE_COMMENT, WS };
+		private CharCursor(char[] input) { this.input = input; }
+
+		private int read() {
+			if (pushback != -1) {
+				int c = pushback;
+				pushback = -1;
+				return c;
+			}
+			if (idx >= input.length) return -1;
+			return input[idx++];
+		}
+
+		private void unread(char c) { this.pushback = c; }
+	}
 }

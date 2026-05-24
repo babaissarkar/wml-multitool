@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.io.StringReader;
 
 import com.babai.wml.parser.PathContext;
 import com.babai.wml.preprocessor.Definition;
@@ -23,7 +22,7 @@ class PreprocessorTest {
 			Something#enddef
 			{MYMACRO2}""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertFalse(str.isEmpty());
 		assertEquals("Something", str);
 	}
@@ -37,7 +36,7 @@ class PreprocessorTest {
 			({x})#enddef
 			{OUTER {INNER}}""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals("(inner_result)", str);
 	}
 
@@ -50,7 +49,7 @@ class PreprocessorTest {
 			({INNER})#enddef
 			{OUTER}""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals("(inner_result)", str);
 	}
 
@@ -65,7 +64,7 @@ class PreprocessorTest {
 			[{x}]#enddef
 			{OUTER {MID}}""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals(3, preproc.getDefines().rowCount());
 		assertEquals("[(deep)]", str);
 	}
@@ -81,7 +80,7 @@ class PreprocessorTest {
 			({WRAPPER {y}})#enddef
 			{OUTER {INNER}}""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals(3, preproc.getDefines().rowCount());
 		assertEquals("(<val>)", str);
 	}
@@ -103,7 +102,7 @@ class PreprocessorTest {
 			default3#endarg
 			Something#enddef""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		preproc.preprocessContent(new StringReader(defString));
+		preproc.preprocessContent(defString);
 		var defines = preproc.getDefines();
 		assertEquals(1, defines.rowCount());
 		var rows = defines.getRows("Name", "MYMACRO");
@@ -124,7 +123,7 @@ class PreprocessorTest {
 			{GREET "World"}
 			{GREET "Friend" PUNC="?"}""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals("Hello \"World\"!\nHello \"Friend\"?", str);
 	}
 
@@ -137,7 +136,7 @@ class PreprocessorTest {
 			{WHO}:{NOTE}#enddef
 			{SAY "Unit" NOTE="very good"}""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals("\"Unit\":very good", str);
 	}
 
@@ -152,7 +151,7 @@ class PreprocessorTest {
 			"Nodef"
 			#endif""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertFalse(str.isEmpty());
 		assertEquals("Something\n", str);
 	}
@@ -166,7 +165,7 @@ class PreprocessorTest {
 			good
 			#endif""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals("good\n", str);
 	}
 
@@ -179,7 +178,7 @@ class PreprocessorTest {
 			nope
 			#endif""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals("ok\n", str);
 	}
 
@@ -189,7 +188,7 @@ class PreprocessorTest {
 			{DOES_NOT_EXIST}
 			text""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertTrue(str.startsWith("{DOES_NOT_EXIST}"));
 		assertTrue(str.contains("text"));
 	}
@@ -201,7 +200,7 @@ class PreprocessorTest {
 			#deprecated 2 1.19.0 Use NEW_MACRO instead
 			abc#enddef""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		preproc.preprocessContent(new StringReader(defString));
+		preproc.preprocessContent(defString);
 		var rows = preproc.getDefines().getRows("Name", "OLD_MACRO");
 		assertEquals(1, rows.size());
 		var macroDefinition = (Definition) rows.get(0).getColumn("Definition").getValue();
@@ -230,7 +229,7 @@ class PreprocessorTest {
 			#endif
 			{ON_DIFFICULTY 40 60 80}""";
 		var preproc = new Preprocessor(PathContext.EMPTY_CONTEXT);
-		String str = preproc.preprocessContent(new StringReader(defString));
+		String str = preproc.preprocessContent(defString);
 		assertEquals(2, preproc.getDefines().rowCount());
 		assertEquals("60", str.strip()); // FIXME where is the stray EOL coming from? We shouldn't need strip.
 	}

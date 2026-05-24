@@ -4,7 +4,6 @@ import static com.babai.wml.cli.ANSIFormatter.colorify;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -136,7 +135,7 @@ public class Main {
 				+ "Macros: " + (mCountEnd - mCountStart));
 		} else {
 			// since this is stdin, time/macro count is inconvenient. may or may not change later.
-			out = p.preprocessContent(new InputStreamReader(System.in));
+			out = p.preprocessContent(new String(System.in.readAllBytes()));
 		}
 		
 		long preprocEnd = System.nanoTime();
