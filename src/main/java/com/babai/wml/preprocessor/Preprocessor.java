@@ -188,8 +188,22 @@ public class Preprocessor {
 		}
 	}
 
+	private boolean hasMacroBlock(String content) {
+		int len = content.length();
+		boolean sawOpen = false;
+		for (int i = 0; i < len; i++) {
+			char c = content.charAt(i);
+			if (c == '{') {
+				sawOpen = true;
+			} else if (c == '}' && sawOpen) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	private String preprocessFragment(String fragment, List<String> args) {
-		if(fragment.indexOf('{') == -1 || fragment.indexOf('}') == -1) return fragment;
+		if (!hasMacroBlock(fragment)) return fragment;
 		try {
 			var buff = new StringBuilder();
 			var itor = tokenize(fragment).listIterator();
@@ -237,7 +251,7 @@ public class Preprocessor {
 			}
 		} else {
 			String content = t.content();
-			if (expandMacro && t.isNotKind(ANGLE_QUOTED) && content.indexOf('{') >= 0 && content.indexOf('}') >= 0) {
+			if (expandMacro && t.isNotKind(ANGLE_QUOTED) && hasMacroBlock(content)) {
 				// expand embedded macro block in other tokens
 				String nestedSubst = preprocessFragment(content, currentArgs);
 				if (nestedSubst.equals(content)) { // nth to subst, return raw
@@ -533,11 +547,14 @@ public class Preprocessor {
 				String out = def.getValue();
 
 				// substitute args
-				if (out.indexOf('{') >= 0) {
+				if (hasMacroBlock(out)) {
 					out = def.expand(args, defArgs);
 				}
 				// substitute macros
-				if (out.indexOf('{') >= 0) {
+				if (hasMacroBlock(out)) {
+					var argsList = new ArrayList<String>();
+					argsList.addAll(def.getArgs());
+					def.getDefArgs().keySet().forEach(k -> argsList.add(k));
 					out = preprocessFragment(out, argsList);
 				}
 				buff.append(out);
@@ -573,8 +590,9 @@ public class Preprocessor {
 	private String stripMatchingQuotes(String argVal) {
 		// Keyword args are parsed from raw macro text and may carry wrapper quotes
 		// (e.g. KEY="value"). Keep inner content and drop only a matching outer pair.
+		if (argVal == null) return null;
 		int len = argVal.length();
-		if (argVal != null && len >= 2 && argVal.charAt(0) == '"' && argVal.charAt(len-1) == '"') {
+		if (len >= 2 && argVal.charAt(0) == '"' && argVal.charAt(len-1) == '"') {
 			return argVal.substring(1, len - 1);
 		}
 		return argVal;
