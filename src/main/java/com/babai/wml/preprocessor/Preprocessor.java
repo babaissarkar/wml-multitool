@@ -535,13 +535,11 @@ public class Preprocessor {
 					args,
 					currentPathUri));
 
-			String argsString = Definition.argsAsString2(args, defArgs);
-			debugPrint(() -> "expanding macro " + def.coloredName()
-				+ (!argsString.isEmpty() ? " with " + colorify(argsString, macroArgColor) : ""));
-
-			var argsList = new ArrayList<String>();
-			argsList.addAll(def.getArgs());
-			def.getDefArgs().keySet().forEach(k -> argsList.add(k));
+			debugPrint(() -> {
+				String argsString = Definition.argsAsString2(args, defArgs);
+				return "expanding macro " + def.coloredName()
+					+ (!argsString.isEmpty() ? " with " + colorify(argsString, macroArgColor) : "");
+			});
 
 			try {
 				String out = def.getValue();
