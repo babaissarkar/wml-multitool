@@ -14,7 +14,7 @@ public final class ParseUtils {
 	private ParseUtils() {};
 	
 	public static boolean isPlus(Token t) {
-		return t.isKind(Token.Kind.TEXT) && t.content().equals("+");
+		return t.isKind(Token.Kind.TEXT) && t.spanEquals("+");
 	}
 
 	public static boolean isEOL(char c) {
@@ -142,7 +142,7 @@ public final class ParseUtils {
 			
 			while (itor.hasNext()) {
 				Token t = itor.next();
-				String content = t.content();
+				String content = t.materialize();
 				if (t.isKind(Token.Kind.MACRO)) {
 					String val = subst.get(content);
 					
