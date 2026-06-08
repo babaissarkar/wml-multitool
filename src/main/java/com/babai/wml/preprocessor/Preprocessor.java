@@ -221,7 +221,7 @@ public class Preprocessor {
 			var itor = tokenize(fragment).listIterator();
 			while (itor.hasNext()) {
 				Token t = itor.next();
-				boolean expand = !args.contains(t.content());
+				boolean expand = !(t.isKind(MACRO) && args.contains(t.materialize()));
 				processToken(itor, t, buff, args, expand);
 			}
 			return buff.toString();
@@ -239,10 +239,10 @@ public class Preprocessor {
 		while (peek(itor).isKind(COMMENT) && !peek(itor).isDirective()) {
 			Token t = itor.next();
 			if (t.isDirective()) break;
-			docBuff.append(t.content().trim());
+			docBuff.append(t.materialize().trim());
 			if (peek(itor).isKind(EOL)) {
 				t = itor.next();
-				docBuff.append(t.content());
+				docBuff.append(t.materialize());
 			}
 			skip(itor, WHITESPACE);
 		}
@@ -264,7 +264,7 @@ public class Preprocessor {
 		} else {
 			if (expandMacro && t.isNotKind(ANGLE_QUOTED) && t.nested()) {
 				// expand embedded macro block in other tokens
-				String content = t.content();
+				String content = t.materialize();
 				String nestedSubst = preprocessFragment(content, currentArgs);
 				if (nestedSubst.equals(content)) { // nth to subst, return raw
 					t.raw(buff);
@@ -450,10 +450,11 @@ public class Preprocessor {
 		}
 	}
 
-	private boolean isPath(String str) {
+	private boolean isPath(Token token) {
 		boolean hasSlash = false;
-		for (int i = 0; i < str.length(); i++) {
-			char c = str.charAt(i);
+		char[] buf = token.buf();
+		for (int i = token.start(); i < token.end(); i++) {
+			char c = buf[i];
 			if (c == '/') hasSlash = true;
 			else if (Character.isWhitespace(c)) return false;
 		}
@@ -463,13 +464,13 @@ public class Preprocessor {
 	// TODO This might need to be recursive, like after expansion
 	// if macro exists after expansion, expand again and so on until no macro calls remain.
 	private void expandMacro(Token macroCall, HashSet<String> possibleArgs, PathContext context, StringBuilder buff) {
-		if (isPath(macroCall.content())) {
+		if (isPath(macroCall)) {
 			// TODO possibleArgs should be zero in this case, otherwise error.
-			handleInclusion(macroCall.content(), context, buff);
+			handleInclusion(macroCall.materialize(), context, buff);
 		} else if (expandMacro) {
 			expandMacroCall(macroCall, possibleArgs, buff);
 		} else if (buff != null) {
-			buff.append(macroCall.content());
+			buff.append(macroCall.buf(), macroCall.start(), macroCall.length());
 		}
 	}
 
@@ -497,7 +498,7 @@ public class Preprocessor {
 
 	private void expandMacroCall(Token macroCall, HashSet<String> possibleArgs, StringBuilder buff) {
 		
-		final String content = macroCall.content();
+		final String content = macroCall.materialize();
 		
 		var parts = ParseUtils.splitQuoted(content);
 		String macroName = parts.get(0);
@@ -618,21 +619,22 @@ public class Preprocessor {
 				errorPrint(() -> "Unknown directive found at " + position(line, col, pathStr));
 			}
 
-			String content = token.content();
-			int len = content.length();
+			char[] content = token.buf();
+			int base = token.start();
+			int end = token.end();
 
 			// find end of first word
-			int i = 0;
-			while (i < len && !isWS(content.charAt(i))) i++;
-			String name = content.substring(0, i);
+			int i = base;
+			while (i < end && !isWS(content[i])) i++;
+			String name = new String(content, base, i - base);
 
 			// collect args
 			List<String> argList = new ArrayList<>();
-			while (i < len) {
-				while (i < len && isWS(content.charAt(i))) i++; // skip whitespace
+			while (i < end) {
+				while (i < end && isWS(content[i])) i++; // skip whitespace
 				int start = i;
-				while (i < len && !isWS(content.charAt(i))) i++; // scan word
-				if (start < i) argList.add(content.substring(start, i));
+				while (i < end && !isWS(content[i])) i++; // scan word
+				if (start < i) argList.add(new String(content, start, i - start));
 			}
 
 			return new DirectiveHeader(name, argList);
