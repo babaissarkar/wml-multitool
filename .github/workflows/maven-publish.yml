@@ -34,7 +34,6 @@ jobs:
           --strip-debug \
           --no-header-files \
           --no-man-pages \
-          --compress=2 \
           --output ./jre
 
     - name: Package ZIP (JAR + JRE)
@@ -45,29 +44,33 @@ jobs:
         cd zip-staging
         zip -r ../WML-linux.zip .
 
-    - uses: actions/upload-artifact@v7
+    - name: Upload JAR
+      uses: actions/upload-artifact@v7
       with:
         name: wml.jar
         path: ./jar/wml.jar
 
-    - uses: actions/upload-artifact@v7
+    - name: Upload Linux ZIP bundle
+      uses: actions/upload-artifact@v7
       with:
         name: WML-linux.zip
         path: ./WML-linux.zip
 
-    - name: Release
+    - name: Release JAR and Linux ZIP
       uses: softprops/action-gh-release@v2
-      if: github.ref == 'refs/heads/master'
+      if: github.ref == 'refs/heads/main'
       with:
         tag_name: latest
         name: Latest Build
-        files: ./jar/wml.jar
+        files: |
+          ./jar/wml.jar
+          ./WML-linux.zip
 
   build-windows:
 
     runs-on: windows-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -91,7 +94,6 @@ jobs:
           --strip-debug `
           --no-header-files `
           --no-man-pages `
-          --compress=2 `
           --output ./jre
 
     - name: Package ZIP (JAR + JRE)
@@ -101,7 +103,17 @@ jobs:
         Copy-Item -Recurse ./jre zip-staging/jre
         Compress-Archive -Path zip-staging/* -DestinationPath WML-win.zip
 
-    - uses: actions/upload-artifact@v7
+    - name: Upload Windows ZIP bundle
+      uses: actions/upload-artifact@v7
       with:
         name: WML-win.zip
         path: ./WML-win.zip
+
+    - name: Release Windows ZIP
+      uses: softprops/action-gh-release@v2
+      if: github.ref == 'refs/heads/main'
+      with:
+        tag_name: latest
+        name: Latest Build
+        files: |
+          ./WML-win.zip
