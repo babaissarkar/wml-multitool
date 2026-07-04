@@ -80,11 +80,11 @@ public class Preprocessor {
 	}
 	
 	public HashSet<MacroCall> getMacroCallsByName(String name) {
-		return macroCallsByName.get(name);
+		return macroCallsByName.getOrDefault(name, new HashSet<>());
 	}
 	
 	public HashSet<MacroCall> getMacroCallsByUri(String uri) {
-		return macroCallsByUri.get(uri);
+		return macroCallsByUri.getOrDefault(uri, new HashSet<>());
 	}
 	
 	public HashMap<String, String> getUnitTypes() {
