@@ -482,6 +482,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 	public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(DocumentSymbolParams params) {
 
 		String docUri = params.getTextDocument().getUri();
+		docUri = Path.of(URI.create(docUri)).toUri().toString();
 		var emptyRange = new Range(
 				new Position(0, 0),
 				new Position(0, 0));
@@ -516,6 +517,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 	@Override
 	public CompletableFuture<List<InlayHint>> inlayHint(InlayHintParams params) {
 		String uri = params.getTextDocument().getUri();
+		uri = Path.of(URI.create(uri)).toUri().toString(); // normalize uri
 		var viewRange = params.getRange();
 		List<InlayHint> hints = new ArrayList<>();
 
