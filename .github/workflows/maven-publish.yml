@@ -24,8 +24,11 @@ jobs:
         server-id: github
         settings-path: ${{ github.workspace }}
 
-    - name: Build JAR
+    - name: Build JAR (Maven)
       run: ./mvnw -ntp -B clean package
+
+    - name: Build JAR (Gradle)
+      run: ./gradlew shadowJar
 
     - name: Create bundled JRE with jlink
       run: |
