@@ -80,14 +80,9 @@ import static org.eclipse.lsp4j.launch.LSPLauncher.createServerLauncher;
 
 public class WMLLanguageServer implements LanguageServer, LanguageClientAware, TextDocumentService {
 	private final static Set<String> animKeys = Set.of(
-		// Progressive Strings
-		"image", "image_diagonal", "halo",
-
-		// Progressive Integers
-		"halo_x", "halo_y", "x", "y", "directional_x", "directional_y", "layer",
-
-		// Progressive Reals
-		"alpha", "offset", "blend_ratio", "submerge"
+		"image", "image_diagonal", "halo", // Progressive Strings
+		"halo_x", "halo_y", "x", "y", "directional_x", "directional_y", "layer", // Progressive Integers
+		"alpha", "offset", "blend_ratio", "submerge" // Progressive Reals
 	);
 	
 	private final static Set<String> unitTypeKeys = Set.of(
