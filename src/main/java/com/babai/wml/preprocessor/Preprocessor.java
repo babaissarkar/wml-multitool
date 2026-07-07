@@ -424,16 +424,10 @@ public class Preprocessor {
 				macroDefaultArgs.forEach((k, v) -> currentDefineArgs.add(k));
 			}
 
-			String body = expandMacro
-				? consumeUntilEndDirective("#enddef", itor)
-				: "";
+			String body = consumeUntilEndDirective("#enddef", itor);
 			var def = new Definition(macroName, body, macroArgs, macroDefaultArgs);
 
-			if (expandMacro) {
 				currentDefineArgs.clear(); // clear arg context
-			} else {
-				skipUntilEndDirective("#enddef", itor);
-			}
 
 			// Extra stuff
 			def.setDocs(doc);

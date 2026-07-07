@@ -387,7 +387,17 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 				// Macro calls
 				Definition def = defines.getMacro(word);
 				content.setKind("markdown");
-				content.setValue("**" + def.name() + "**\n\n" + def.getDocs());
+				var buff = new StringBuilder();
+				buff.append("**").append(def.name()).append("**\n\n").append(def.getDocs());
+				buff.append("\n\n```ini\n");
+				String val = def.getValue();
+				if (val.length() < 100) {
+					buff.append(val);
+				} else {
+					buff.append(val.substring(0, 100) + "...");
+				}
+				buff.append("\n```");
+				content.setValue(buff.toString());
 			} else if ((p = checkWesnothPath(word, params.getTextDocument().getUri())) != null) {
 				if (Files.exists(p)) {
 					content.setKind("markdown");
