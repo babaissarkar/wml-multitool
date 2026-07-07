@@ -649,7 +649,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 			parseFile(rootUri);
 		}
 
-		showLSPMessage("Parsed, " + defines.size() + " macros and " + unitTypes.size() + " unittypes defined.");
+		showLSPMessage("Parsed, " + defines.size() + " macros, " + unitTypes.size() + " unittypes, " + binaryPaths.size() + " binary paths.");
 	}
 
 	private void parseFile(String uri) {
