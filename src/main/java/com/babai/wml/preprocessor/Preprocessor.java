@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -22,7 +21,6 @@ import static com.babai.wml.utils.Colors.*;
 import static com.babai.wml.utils.LogUtils.*;
 import static com.babai.wml.cli.ANSIFormatter.colorify;
 import static com.babai.wml.parser.ParseUtils.*;
-import static com.babai.wml.tokenizer.Tokenizer.tokenize;
 import static com.babai.wml.tokenizer.Token.Kind.*;
 
 public class Preprocessor {
@@ -197,7 +195,7 @@ public class Preprocessor {
 
 	// Can only deal with a string
 	private void preprocessContent(String content, StringBuilder buff) throws IOException {
-		var itor = tokenize(content).listIterator();
+		var itor = new Tokenizer(content);
 		
 		// add [campaign]define= definition, usually found in _main.cfg
 		// TODO support line number, don't allow redefinition
@@ -242,21 +240,17 @@ public class Preprocessor {
 
 	private String preprocessFragment(String fragment, HashSet<String> args) {
 		if (!hasMacroBlock(fragment)) return fragment;
-		try {
-			var buff = new StringBuilder();
-			var itor = tokenize(fragment).listIterator();
-			while (itor.hasNext()) {
-				Token t = itor.next();
-				boolean expand = !args.contains(t.content());
-				processToken(itor, t, buff, args, expand);
-			}
-			return buff.toString();
-		} catch (IOException e) {
-			return fragment; // shouldn't happen
+		var buff = new StringBuilder();
+		var itor = new Tokenizer(fragment);
+		while (itor.hasNext()) {
+			Token t = itor.next();
+			boolean expand = !args.contains(t.content());
+			processToken(itor, t, buff, args, expand);
 		}
+		return buff.toString();
 	}
 
-	private String handleDocComment(ListIterator<Token> itor) {
+	private String handleDocComment(Tokenizer itor) {
 		skip(itor, EOL);
 
 		skip(itor, WHITESPACE);
@@ -275,7 +269,7 @@ public class Preprocessor {
 		return docBuff.toString().trim();
 	}
 
-	private void processToken(ListIterator<Token> itor, Token t, StringBuilder buff, HashSet<String> currentArgs, boolean expandMacro) {
+	private void processToken(Tokenizer itor, Token t, StringBuilder buff, HashSet<String> currentArgs, boolean expandMacro) {
 		if (t.isKind(COMMENT)) {
 			if (t.isDirective()) {
 				handleDirective(t, itor, currentPathUri);
@@ -301,7 +295,7 @@ public class Preprocessor {
 		}
 	}
 
-	private String consumeUntilEndDirective(String directiveName, ListIterator<Token> itor) {
+	private String consumeUntilEndDirective(String directiveName, Tokenizer itor) {
 		if (!itor.hasNext()) return "";
 		
 		StringBuilder body = new StringBuilder();
@@ -327,11 +321,11 @@ public class Preprocessor {
 		return body.toString();
 	}
 
-	private void skipUntilEndDirective(String endDir, ListIterator<Token> itor) {
+	private void skipUntilEndDirective(String endDir, Tokenizer itor) {
 		skipUntilEndDirective2(endDir, endDir, itor);
 	}
 
-	private void skipUntilEndDirective2(String endDir1, String endDir2, ListIterator<Token> itor) {
+	private void skipUntilEndDirective2(String endDir1, String endDir2, Tokenizer itor) {
 		if (!itor.hasNext()) return;
 		Token t = itor.next();
 		while (!(t.isDirectiveName(endDir1, false) || t.isDirectiveName(endDir2, false))) {
@@ -354,7 +348,7 @@ public class Preprocessor {
 		return;
 	}
 
-	private void handleDirective(Token directiveStart, ListIterator<Token> itor, String pathUri) {
+	private void handleDirective(Token directiveStart, Tokenizer itor, String pathUri) {
 		boolean skipTrailingWS = true;
 		var directiveHeader = DirectiveHeader.parse(directiveStart, currentPathUri);
 		var directiveArgs = directiveHeader.args();

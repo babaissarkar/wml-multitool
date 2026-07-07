@@ -1,18 +1,24 @@
 package com.babai.wml.tokenizer;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
 import com.babai.wml.utils.Position;
 
 import static com.babai.wml.parser.ParseUtils.*;
 
-public final class Tokenizer {
+public final class Tokenizer implements Iterator<Token> {
 	private enum State { NORMAL, LINE_COMMENT, WS };
+
+	private final CharCursor r;
+	private Token nextToken;
+	private final StringBuilder buff = new StringBuilder(256);
+	private final Position start = Position.start();
+	private State state = State.NORMAL;
+	private boolean exhausted = false;
 
 	// Data extraction variables
 	private static boolean enableExtraction = false;
@@ -29,18 +35,39 @@ public final class Tokenizer {
 		binaryPath.add(Path.of("data/core"));
 	}
 
-	public static List<Token> tokenize(String content) throws IOException {
-		return tokenize(content.toCharArray());
+	public Tokenizer(String content) {
+		this(content.toCharArray());
 	}
 
-	public static List<Token> tokenize(char[] input) throws IOException {
+	public Tokenizer(char[] input) {
 		lineBuff.setLength(0);
+		this.r = new CharCursor(input);
+	}
 
-		CharCursor r = new CharCursor(input);
-		List<Token> tokens = new ArrayList<>();
-		StringBuilder buff = new StringBuilder(256);
-		State state = State.NORMAL;
-		Position start = Position.start();
+	@Override
+	public boolean hasNext() {
+		if (nextToken == null) {
+			nextToken = readNextToken();
+		}
+		return nextToken != null;
+	}
+
+	public Token peek() {
+		return hasNext() ? nextToken : Token.EMPTY;
+	}
+
+	@Override
+	public Token next() {
+		if (!hasNext()) {
+			throw new NoSuchElementException("No more tokens available");
+		}
+		Token token = nextToken;
+		nextToken = null;
+		return token;
+	}
+
+	private Token readNextToken() {
+		if (exhausted) return null;
 
 		int ch;
 		while ((ch = r.read()) != -1) {
@@ -48,85 +75,80 @@ public final class Tokenizer {
 			switch (state) {
 			case NORMAL -> {
 				if (isWS(c)) {
-					finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
+					if (!buff.isEmpty()) {
+						r.unread(c);
+						return finalizeToken(buff, Token.Kind.TEXT, start);
+					}
 					state = State.WS;
 					buff.append(c);
-				} else {
-					if (isEOL(c)) {
-						finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
-						handleEOLToken(tokens, c, r, start);
-					} else {
-						if (c == '#') {
-							finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
-							buff.append(c);
-							state = State.LINE_COMMENT;
-						} else if (c == '"') {
-							finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
-							handleQuoteToken(tokens, r, buff, start);
-						} else if (c == '<') {
-							finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
-							handleAngleQuoteToken(tokens, r, buff, start);
-						} else if (c == '{') {
-							finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
-							handleMacroToken(tokens, r, buff, start);
-						} else {
-							buff.append(c);
-						}
+				} else if (isEOL(c)) {
+					if (!buff.isEmpty()) {
+						r.unread(c);
+						return finalizeToken(buff, Token.Kind.TEXT, start);
 					}
+					return readEOLToken(c, r, start);
+				} else if (c == '#') {
+					if (!buff.isEmpty()) {
+						r.unread(c);
+						return finalizeToken(buff, Token.Kind.TEXT, start);
+					}
+					buff.append(c);
+					state = State.LINE_COMMENT;
+				} else if (c == '"') {
+					if (!buff.isEmpty()) {
+						r.unread(c);
+						return finalizeToken(buff, Token.Kind.TEXT, start);
+					}
+					return readQuoteToken(r, buff, start);
+				} else if (c == '<') {
+					if (!buff.isEmpty()) {
+						r.unread(c);
+						return finalizeToken(buff, Token.Kind.TEXT, start);
+					}
+					Token token = readAngleQuoteToken(r, buff, start);
+					if (token != null) return token;
+				} else if (c == '{') {
+					if (!buff.isEmpty()) {
+						r.unread(c);
+						return finalizeToken(buff, Token.Kind.TEXT, start);
+					}
+					return readMacroToken(r, buff, start);
+				} else {
+					buff.append(c);
 				}
 			}
 
 			case LINE_COMMENT -> {
 				if (isEOL(c)) {
-					finalizeAndAddToken(tokens, buff, Token.Kind.COMMENT, start);
-					handleEOLToken(tokens, c, r, start);
+					r.unread(c);
 					state = State.NORMAL;
-				} else {
-					buff.append(c);
+					return finalizeToken(buff, Token.Kind.COMMENT, start);
 				}
+				buff.append(c);
 			}
 
 			case WS -> {
 				if (!isWS(c)) {
-					finalizeAndAddToken(tokens, buff, Token.Kind.WHITESPACE, start);
-					if (c == '#') {
-						buff.append(c);
-						state = State.LINE_COMMENT;
-					} else {
-						state = State.NORMAL;
-					}
+					r.unread(c);
+					state = State.NORMAL;
+					return finalizeToken(buff, Token.Kind.WHITESPACE, start);
 				}
-
-				if (isEOL(c)) {
-					handleEOLToken(tokens, c, r, start);
-				} else if (c == '"') {
-					handleQuoteToken(tokens, r, buff, start);
-				} else if (c == '<') {
-					handleAngleQuoteToken(tokens, r, buff, start);
-				} else if (c == '{') {
-					handleMacroToken(tokens, r, buff, start);
-				} else if (c != '#') {
-					buff.append(c);
-				}
+				buff.append(c);
 			}
 			}
 		}
 
-		if (ch == -1 && !buff.isEmpty()) {
-			if (state == State.NORMAL) {
-				finalizeAndAddToken(tokens, buff, Token.Kind.TEXT, start);
-			} else if (state == State.LINE_COMMENT) {
-				finalizeAndAddToken(tokens, buff, Token.Kind.COMMENT, start);
-			} else if (state == State.WS) {
-				finalizeAndAddToken(tokens, buff, Token.Kind.WHITESPACE, start);
-			}
-		}
-
-		return tokens;
+		exhausted = true;
+		if (buff.isEmpty()) return null;
+		return switch (state) {
+			case NORMAL -> finalizeToken(buff, Token.Kind.TEXT, start);
+			case LINE_COMMENT -> finalizeToken(buff, Token.Kind.COMMENT, start);
+			case WS -> finalizeToken(buff, Token.Kind.WHITESPACE, start);
+		};
 	}
 
-	// Note: this assumes that r is currently at the character '"'
-	private static void handleQuoteToken(List<Token> tokens, CharCursor r, StringBuilder buff, Position start) {
+	// Note: this assumes that r has just consumed the character '"'
+	private Token readQuoteToken(CharCursor r, StringBuilder buff, Position start) {
 		char prevChar = 0;
 		buff.setLength(0);
 		int ncount = 0;
@@ -165,12 +187,13 @@ public final class Tokenizer {
 			prevChar = c;
 		}
 
-		finalizeAndAddToken(tokens, buff.toString(), Token.Kind.QUOTED, start, ncount, npos, false);
+		Token token = finalizeToken(buff.toString(), Token.Kind.QUOTED, start, ncount, npos, false);
 		buff.setLength(0);
+		return token;
 	}
 
-	// Note: this assumes that r is currently at the first '<' character
-	private static void handleAngleQuoteToken(List<Token> tokens, CharCursor r, StringBuilder buff, Position start) {
+	// Note: this assumes that r has just consumed the first '<' character
+	private Token readAngleQuoteToken(CharCursor r, StringBuilder buff, Position start) {
 		buff.setLength(0);
 		int ncount = 0; int npos = 0;
 		
@@ -178,7 +201,7 @@ public final class Tokenizer {
 		int ch = r.read();
 		if (ch == -1 || ((char) ch) != '<') {
 			if (ch != -1) r.unread((char) ch);
-			return; // lone '<'
+			return null; // lone '<'
 		}
 
 		buff.append('<');
@@ -205,13 +228,14 @@ public final class Tokenizer {
 			}
 		}
 
-		finalizeAndAddToken(tokens, buff.toString(), Token.Kind.ANGLE_QUOTED, start, ncount, npos, false);
+		Token token = finalizeToken(buff.toString(), Token.Kind.ANGLE_QUOTED, start, ncount, npos, false);
 		buff.setLength(0);
+		return token;
 	}
 
-	// Note: this assumes that r is currently at the character '{'
+	// Note: this assumes that r has just consumed the character '{'
 	// Note: we are skipping { and } from the token text itself, can be deduced from token kind
-	private static void handleMacroToken(List<Token> tokens, CharCursor r, StringBuilder buff, Position start) {
+	private Token readMacroToken(CharCursor r, StringBuilder buff, Position start) {
 		buff.setLength(0);
 		int ch;
 		int nlvl = 0;
@@ -245,49 +269,50 @@ public final class Tokenizer {
 			}
 		}
 
-		finalizeAndAddToken(tokens, buff.toString(), Token.Kind.MACRO, start, ncount, npos, hasNested);
+		Token token = finalizeToken(buff.toString(), Token.Kind.MACRO, start, ncount, npos, hasNested);
 		buff.setLength(0);
+		return token;
 	}
 
-	private static void handleEOLToken(List<Token> tokens, char c, CharCursor r, Position start) {
+	private Token readEOLToken(char c, CharCursor r, Position start) {
 		if (c == '\r') {
 			int c2 = r.read();
 			if (c2 != -1 && ((char) c2) == '\n') {
-				finalizeAndAddToken(tokens, "\r\n", Token.Kind.EOL, start, 1, 0, false);
-			} else {
-				if (c2 != -1) {
-					r.unread((char) c2);
-				}
-				finalizeAndAddToken(tokens, "\r", Token.Kind.EOL, start, 1, 0, false);
+				return finalizeToken("\r\n", Token.Kind.EOL, start, 1, 0, false);
 			}
-		} else {
-			finalizeAndAddToken(tokens, String.valueOf(c), Token.Kind.EOL, start, 1, 0, false);
+			if (c2 != -1) {
+				r.unread((char) c2);
+			}
+			return finalizeToken("\r", Token.Kind.EOL, start, 1, 0, false);
 		}
+		return finalizeToken(String.valueOf(c), Token.Kind.EOL, start, 1, 0, false);
 	}
 
-	private static void finalizeAndAddToken(List<Token> tokens, StringBuilder buff, Token.Kind kind, Position start) {
-		finalizeAndAddToken(tokens, buff.toString(), kind, start, 0, buff.length(), false);
+	private Token finalizeToken(StringBuilder buff, Token.Kind kind, Position start) {
+		Token token = finalizeToken(buff.toString(), kind, start, 0, buff.length(), false);
 		buff.setLength(0);
+		return token;
 	}
 
-	private static void finalizeAndAddToken(List<Token> tokens, String contents, Token.Kind kind, Position start, int ncount, int npos, boolean hasNested) {
-		if (!contents.isEmpty() || kind == Token.Kind.COMMENT) {
-			if (kind != Token.Kind.WHITESPACE) {
-				if (kind != Token.Kind.EOL) {
-					extractData(contents);
-				} else {
-					commitBuff();
-				}
-			}
+	private Token finalizeToken(String contents, Token.Kind kind, Position start, int ncount, int npos, boolean hasNested) {
+		if (contents.isEmpty() && kind != Token.Kind.COMMENT) return null;
 
-			tokens.add(new Token(contents, kind, start.line(), start.col(), hasNested));
-			if (ncount == 0) {
-				start.forward(npos);
+		if (kind != Token.Kind.WHITESPACE) {
+			if (kind != Token.Kind.EOL) {
+				extractData(contents);
 			} else {
-				for (int i = 0; i < ncount; i++) start.newline();
-				start.forward(npos);
+				commitBuff();
 			}
 		}
+
+		Token token = new Token(contents, kind, start.line(), start.col(), hasNested);
+		if (ncount == 0) {
+			start.forward(npos);
+		} else {
+			for (int i = 0; i < ncount; i++) start.newline();
+			start.forward(npos);
+		}
+		return token;
 	}
 
 	private static final class CharCursor {
