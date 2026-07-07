@@ -1,6 +1,7 @@
 package com.babai.wml.experimental;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -17,12 +18,19 @@ import com.babai.wml.tokenizer.Token;
 import com.babai.wml.tokenizer.Tokenizer;
 
 import com.babai.wml.tokenizer.Token.Kind;
-import static com.babai.wml.tokenizer.Tokenizer.tokenize;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 class TokenizerTest {
+	private static List<Token> tokenize(String text) {
+		var tokenizer = new Tokenizer(text);
+		var tokens = new ArrayList<Token>();
+		while (tokenizer.hasNext()) {
+			tokens.add(tokenizer.next());
+		}
+		return tokens;
+	}
 	
 	@Test
 	void testArgPosSimple() {
@@ -64,7 +72,7 @@ class TokenizerTest {
 				{TEST}
 				{TESTB 2 3 C=4}
 				""";
-		var toks = Tokenizer.tokenize(text);
+		var toks = tokenize(text);
 
 		record Expectation(String content, Kind kind, int beginLine, int beginColumn) {}
 
@@ -151,7 +159,7 @@ class TokenizerTest {
 	@Test
 	void testCommentSplit() {
 		String text = "Hello #Comment\nLine2";
-		try {
+		{
 			List<Token> toks = tokenize(text);
 			System.out.println("Toks(comment test): " + toks);
 			assertEquals(5, toks.size());
@@ -162,29 +170,25 @@ class TokenizerTest {
 			assertEquals("\n", toks.get(3).content());
 			assertEquals("Line2", toks.get(4).content());
 			assertEquals(2, toks.get(4).beginLine());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 	
 	@Test
 	void testSimpleKeyValPair() {
 		String text = "key=value";
-		try {
+		{
 			List<Token> toks = tokenize(text);
 			System.out.println("Toks(keyval test): " + toks);
 			assertEquals(1, toks.size());
 			assertEquals("key=value", toks.get(0).content());
 			assertEquals(Token.Kind.TEXT, toks.get(0).kind());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}	
 	}
 	
 	@Test
 	void testSpacedKeyValPair() {
 		String text = "key = value";
-		try {
+		{
 			List<Token> toks = tokenize(text);
 			System.out.println("Toks(spaced keyval): " + toks);
 			assertEquals(5, toks.size());
@@ -192,78 +196,66 @@ class TokenizerTest {
 			assertEquals(Token.Kind.TEXT, toks.get(0).kind());
 			assertEquals("value", toks.get(4).content());
 			assertEquals(Token.Kind.TEXT, toks.get(4).kind());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}	
 	}
 
 	@Test
 	void testQuotedString() {
 		String text = "key=\"value val\"\"ue2\nvalue3\"";
-		try {
+		{
 			List<Token> toks = tokenize(text);
 			System.out.println("Toks(quoted keyval): " + toks);
 			assertEquals(2, toks.size());
 			// checks "" -> " collapse, preservation of whitespace
 			assertEquals("key=", toks.get(0).content());
 			assertEquals("\"value val\"ue2\nvalue3\"", toks.get(1).content());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}	
 	}
 	
 	@Test
 	void testAngledQuotedString() {
 		String text = "key=<<value val\"ue2\nvalue3>>";
-		try {
+		{
 			List<Token> toks = tokenize(text);
 			System.out.println("Toks(angle quoted keyval): " + toks);
 			assertEquals(2, toks.size());
 			assertEquals("key=", toks.get(0).content());
 			assertEquals("<<value val\"ue2\nvalue3>>", toks.get(1).content());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}	
 	}
 	
 	@Test
 	void testMacroString() {
 		String text = "key={MYMACRO ARG1 ARG2 ARG3=\"def\"}";
-		try {
+		{
 			List<Token> toks = tokenize(text);
 			System.out.println("Toks(macro keyval): " + toks);
 			assertEquals(2, toks.size());
 			// checks 1. "" -> " collapse, preservation of whitespace
 			assertEquals("key=", toks.get(0).content());
 			assertEquals("MYMACRO ARG1 ARG2 ARG3=\"def\"", toks.get(1).content());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}	
 	}
 	
 	@Test
 	void testSingleAngle() {
 		String text = "<hello>";
-		try {
+		{
 			List<Token> toks = tokenize(text);
 			assertEquals(1, toks.size());
 			assertEquals(Token.Kind.TEXT, toks.get(0).kind());
 			assertEquals("<hello>", toks.get(0).content());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 	
 	@Test
 	void testUnbalancedAngle() {
 		String text = "<hello";
-		try {
+		{
 			List<Token> toks = tokenize(text);
 			assertEquals(1, toks.size());
 			assertEquals(Token.Kind.TEXT, toks.get(0).kind());
 			assertEquals("<hello", toks.get(0).content());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 	
@@ -279,8 +271,6 @@ class TokenizerTest {
 			assertEquals(1, toks.size());
 			assertEquals("Hello Hello", toks.get(0).content());
 			assertEquals(Token.Kind.QUOTED, toks.get(0).kind());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 
@@ -294,8 +284,6 @@ class TokenizerTest {
 			assertEquals(1, toks.size());
 			assertEquals("foo bar", toks.get(0).content());
 			assertEquals(Token.Kind.TEXT, toks.get(0).kind());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 
@@ -309,8 +297,6 @@ class TokenizerTest {
 			assertEquals(1, toks.size());
 			assertEquals("Helloworld", toks.get(0).content());
 			assertEquals(Token.Kind.QUOTED, toks.get(0).kind());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 
@@ -324,27 +310,20 @@ class TokenizerTest {
 			assertEquals(1, toks.size());
 			assertEquals("Journeyof aFrost Mage", toks.get(0).content());
 			assertEquals(Token.Kind.QUOTED, toks.get(0).kind());
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
 	}
 	*/
 	
 	@Test
-	void testSnippetTokenization() {
+	void testSnippetTokenization() throws IOException {
 		String text = """
 			[binary_path]
 				path=data/add-ons/Frost_Mage
 			[/binary_path]""";
-		try {
-			
-			var binaryPaths = new HashSet<String>();
-			Parser p = new Parser();
-			p.addQuery("binary_path/path", v -> binaryPaths.add(v));
-			p.parse(text);
-			assertEquals(1, binaryPaths.size());
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		var binaryPaths = new HashSet<String>();
+		Parser p = new Parser();
+		p.addQuery("binary_path/path", v -> binaryPaths.add(v));
+		p.parse(text);
+		assertEquals(1, binaryPaths.size());
 	}
 }

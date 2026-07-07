@@ -6,11 +6,12 @@ import java.util.List;
 import java.util.ListIterator;
 
 import com.babai.wml.tokenizer.Token;
+import com.babai.wml.tokenizer.Tokenizer;
 
 public final class ParseUtils {
-	
+
 	private ParseUtils() {};
-	
+
 	public static boolean isPlus(Token t) {
 		return t.isKind(Token.Kind.TEXT) && t.content().equals("+");
 	}
@@ -27,57 +28,74 @@ public final class ParseUtils {
 		if (!it.hasNext()) {
 			return Token.EMPTY;
 		}
-		
+
 		Token t = it.next();
 		it.previous();
 		return t;
 	}
-	
+
 	public static void skip(ListIterator<Token> itor, Token.Kind skipKind) {
 		while (itor.hasNext() && ParseUtils.peek(itor).kind() == skipKind) {
 			itor.next();
 		}
 	}
-	
+
 	public static void skip(ListIterator<Token> itor, Token.Kind skipKind, Token.Kind skipKind2) {
 		while (itor.hasNext() && (ParseUtils.peek(itor).kind() == skipKind || ParseUtils.peek(itor).kind() == skipKind2))
 		{
 			itor.next();
 		}
 	}
-	
-	public record Pair<T, V>(T first, V second) {}; 
-	
+
+
+	public static Token peek(Tokenizer tokenizer) {
+		return tokenizer.peek();
+	}
+
+	public static void skip(Tokenizer tokenizer, Token.Kind skipKind) {
+		while (tokenizer.hasNext() && tokenizer.peek().kind() == skipKind) {
+			tokenizer.next();
+		}
+	}
+
+	public static void skip(Tokenizer tokenizer, Token.Kind skipKind, Token.Kind skipKind2) {
+		while (tokenizer.hasNext() && (tokenizer.peek().kind() == skipKind || tokenizer.peek().kind() == skipKind2)) {
+			tokenizer.next();
+		}
+	}
+
+	public record Pair<T, V>(T first, V second) {};
+
 	public static Pair<String, List<Integer>> parseMacroCall(String macro) {
 		var pos = new ArrayList<Integer>();
-		
+
 		int i = 0;
-		
+
 		if (macro.length() < 2
 			|| ((macro.charAt(i) != '{') && macro.charAt(macro.length() - 1) != '}'))
 		{
 			return new Pair<>("", pos); // not a macro call or invalid size
 		}
 		i++; // skip initial {
-		
+
 		while (i < macro.length() - 1 && isWS(macro.charAt(i))) i++; // skip WS after {
-		
+
 		// Macro Name
 		int nameStart = i;
 		while (i < macro.length() - 1 && !isWS(macro.charAt(i))) i++;
 		int nameEnd = i;
-		
+
 		// Macro args
 		boolean inParen = false;
 		while (i < macro.length() - 1) { // -1 because last one would always be '}'
 			while (i < macro.length() - 1 && isWS(macro.charAt(i))) i++; // skip separator WS
 			pos.add(i); // mark arg start
-			
+
 			if(macro.charAt(i) == '(') {
 				inParen = true;
 				i++;
 			}
-			
+
 			if (inParen) {
 				while (i < macro.length() - 1 && macro.charAt(i) != ')') i++;
 				if (macro.charAt(i) == ')') i++;
@@ -86,10 +104,10 @@ public final class ParseUtils {
 				while (i < macro.length() - 1 && !isWS(macro.charAt(i))) i++; // skip arg
 			}
 		}
-		
+
 		return new Pair<>(macro.substring(nameStart, nameEnd), pos);
 	}
-	
+
 	public static List<String> splitQuoted(String token) {
 		List<String> parts = new ArrayList<>();
 		StringBuilder sb = new StringBuilder();
@@ -97,10 +115,10 @@ public final class ParseUtils {
 
 		int i = 0;
 		int nlvl = 0; // () nesting level
-		
+
 		while (i < chars.length) {
 			sb.setLength(0);
-			
+
 			// Token boundary starts at the next non-whitespace character.
 			while (i < chars.length && Character.isWhitespace(chars[i])) i++; // skip WS
 			if (i >= chars.length) break;
@@ -127,9 +145,9 @@ public final class ParseUtils {
 					while (i < chars.length) {
 						if (chars[i] == '(') nlvl++;
 						if (chars[i] == ')') nlvl--;
-						
+
 						if (nlvl == 0) break;
-						
+
 						sb.append(chars[i]);
 						i++;
 					}
@@ -156,10 +174,10 @@ public final class ParseUtils {
 			// Commit parsed token fragment.
 			parts.add(sb.toString());
 		}
-		
+
 		return parts;
 	}
-	
+
 	public static String csvEscape(String s) {
 		if (s == null) return "";
 
@@ -173,7 +191,7 @@ public final class ParseUtils {
 
 		return "\"" + s.replace("\"", "\"\"") + "\"";
 	}
-	
+
 	public static String substitute(String template, Map<String, String> subst) {
 		if (template.indexOf('{') == -1) return template;
 
