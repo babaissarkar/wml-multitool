@@ -211,9 +211,8 @@ public class Main {
 				LogUtils.errorPrint(() ->ioe.getMessage());
 			}
 		} else {
-			var unitTypes = Tokenizer.getUnitTypes();
 			LogUtils.infoPrint(() -> "Binary Paths: " + Tokenizer.getBinaryPaths());
-			LogUtils.infoPrint(() -> "Unit Types: " + unitTypes.size());
+			LogUtils.infoPrint(() -> "Unit Types: " + p.getUnitTypes().size());
 		}
 		
 //		if (argParse.extractUnitTypeData) {
