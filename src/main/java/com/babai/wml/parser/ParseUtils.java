@@ -3,7 +3,6 @@ package com.babai.wml.parser;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.List;
-import java.util.ListIterator;
 
 import com.babai.wml.tokenizer.Token;
 import com.babai.wml.tokenizer.Tokenizer;
@@ -23,30 +22,6 @@ public final class ParseUtils {
 	public static boolean isWS(char c) {
 		return Character.isWhitespace(c) && !isEOL(c);
 	}
-
-	public static Token peek(ListIterator<Token> it) {
-		if (!it.hasNext()) {
-			return Token.EMPTY;
-		}
-
-		Token t = it.next();
-		it.previous();
-		return t;
-	}
-
-	public static void skip(ListIterator<Token> itor, Token.Kind skipKind) {
-		while (itor.hasNext() && ParseUtils.peek(itor).kind() == skipKind) {
-			itor.next();
-		}
-	}
-
-	public static void skip(ListIterator<Token> itor, Token.Kind skipKind, Token.Kind skipKind2) {
-		while (itor.hasNext() && (ParseUtils.peek(itor).kind() == skipKind || ParseUtils.peek(itor).kind() == skipKind2))
-		{
-			itor.next();
-		}
-	}
-
 
 	public static Token peek(Tokenizer tokenizer) {
 		return tokenizer.peek();
