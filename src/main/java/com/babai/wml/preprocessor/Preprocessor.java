@@ -196,13 +196,6 @@ public class Preprocessor {
 	// Can only deal with a string
 	private void preprocessContent(String content, StringBuilder buff) throws IOException {
 		var itor = new Tokenizer(content);
-		
-		// add [campaign]define= definition, usually found in _main.cfg
-		// TODO support line number, don't allow redefinition
-		String mdef = Tokenizer.getMainDefine();
-		if (!mdef.isEmpty()) {
-			defines.addMacro(mdef, new Definition(mdef, "true"), 0, currentPathUri);
-		}
 
 		skip(itor, EOL);
 
@@ -270,6 +263,13 @@ public class Preprocessor {
 	}
 
 	private void processToken(Tokenizer itor, Token t, StringBuilder buff, HashSet<String> currentArgs, boolean expandMacro) {
+		// add [campaign]define= definition, usually found in _main.cfg
+		// TODO support line number, don't allow redefinition
+		String mdef = Tokenizer.getMainDefine();
+		if (mdef != null && !mdef.isEmpty() && !defines.hasMacro(mdef)) {
+			defines.addMacro(mdef, new Definition(mdef, "true"), 0, currentPathUri);
+		}
+		
 		if (t.isKind(COMMENT)) {
 			if (t.isDirective()) {
 				handleDirective(t, itor, currentPathUri);
