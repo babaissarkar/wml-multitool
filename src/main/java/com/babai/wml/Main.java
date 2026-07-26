@@ -203,7 +203,7 @@ public class Main {
 			
 			try {
 				if (!argParser.queries.isEmpty()) {
-					writer.write(!buff.isEmpty() ? buff.toString() : "Query did not match.");
+					writer.write(!buff.isEmpty() ? buff.toString() : "Query did not match.\n");
 				} else if (!argParser.definitions && !fastMode) {
 					writer.write(out);
 				}
