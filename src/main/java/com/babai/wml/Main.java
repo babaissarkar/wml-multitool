@@ -14,7 +14,7 @@ import java.util.logging.Level;
 import com.babai.wml.cli.ANSIFormatter;
 import com.babai.wml.cli.ArgParser;
 import com.babai.wml.lsp.WMLLanguageServer;
-import com.babai.wml.output.DataExtractor;
+import com.babai.wml.output.DataWriter;
 import com.babai.wml.parser.Parser;
 import com.babai.wml.parser.PathContext;
 import com.babai.wml.preprocessor.Definition;
@@ -68,7 +68,7 @@ public class Main {
 			try {
 				initParse(argParser);
 				if (argParser.generateMacroRef) {
-					DataExtractor.generateMacroRef(
+					DataWriter.generateMacroRef(
 						argParser.macroRefPath, defines, fileExplanations, pathContext);
 				}
 			} catch (IOException e) {

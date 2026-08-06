@@ -20,7 +20,7 @@ import com.babai.wml.parser.PathContext;
 import com.babai.wml.preprocessor.Definition;
 import com.babai.wml.utils.MacroTable;
 
-public class DataExtractor {
+public class DataWriter {
 	private final static Pattern linepattern = Pattern.compile("\\R");
 	
 	public static void writeUnitTypeData(HashSet<Config> unitTypeData, Path unitTypeOutPath) {
