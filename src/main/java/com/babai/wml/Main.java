@@ -131,6 +131,7 @@ public class Main {
 		}
 //		p.setExtractData(argParse.extractUnitTypeData);
 
+		StringBuilder outbuff = new StringBuilder();
 		for (Path incpath : argParser.includes) {
 			// FIXME recheck directory support
 			long depStart = System.nanoTime();
@@ -138,10 +139,15 @@ public class Main {
 			
 			p.preprocess(incpath);
 			
+			if (argParser.listFilesInInfo) {
+				outbuff.append("\n").append(p.getIncludeTree().toString());
+			}
+			
 			writeTime(
 				"Preprocessed " + colorify(pathContext.relativize(incpath), Colors.filePathColor) + ", "
 				+ (p.getDefines().size() - mCountStart) + " macros. ",
 				depStart);
+			
 		}
 		
 		String out = "";
@@ -150,6 +156,10 @@ public class Main {
 			int countStart = p.getDefines().size();
 			
 			out = p.preprocess(argParser.inputPath);
+			
+			if (argParser.listFilesInInfo) {
+				outbuff.append("\n").append(p.getIncludeTree().toString());
+			}
 			
 			writeTime(
 				"Preprocessed " + colorify(pathContext.relativize(argParser.inputPath), Colors.filePathColor) + ", "
@@ -174,10 +184,25 @@ public class Main {
 				writer.write(defines.getUri(name));
 				writer.write("\n");
 			}
+			
+			if (writer != null) {
+				writer.flush();
+				writer.close();
+			}
+			
+			return;
+		} else if (argParser.listFilesInInfo) {
+			writer.write(outbuff.toString());
+			if (writer != null) {
+				writer.flush();
+				writer.close();
+			}
+			return;
 		} else if (argParser.queries.isEmpty() && !fastMode) {
 			writer.write(out);
 		}
 		
+		// Parsing and queries
 		if (argParser.parse && !fastMode) {
 			HashSet<Path> binaryPaths = new HashSet<>();
 			HashSet<String> unitTypes = new HashSet<>();

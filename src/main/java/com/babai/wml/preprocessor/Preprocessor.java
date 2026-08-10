@@ -16,6 +16,7 @@ import com.babai.wml.parser.PathContext;
 import com.babai.wml.tokenizer.Token;
 import com.babai.wml.tokenizer.Tokenizer;
 import com.babai.wml.utils.MacroTable;
+import com.babai.wml.utils.Tree;
 
 import static com.babai.wml.utils.Colors.*;
 import static com.babai.wml.utils.LogUtils.*;
@@ -25,8 +26,10 @@ import static com.babai.wml.tokenizer.Token.Kind.*;
 
 public class Preprocessor {
 	private boolean skipElse = true;
-	private boolean listFilesInInfo = false;
 	private boolean expandMacro = true;
+	
+	private boolean listFilesInInfo = false;
+	private Tree<String> filesTree = new Tree<>();
 	
 	private MacroTable defines;
 	private PathContext context;
@@ -97,8 +100,14 @@ public class Preprocessor {
 		this.listFilesInInfo = listFilesInInfo;
 	}
 	
+	public Tree<String> getIncludeTree() {
+		return filesTree;
+	}
+	
+	// toplevel
 	public String preprocess(Path path) {
 		var out = expandMacro ? new StringBuilder() : null;
+		filesTree = new Tree<>();
 		preprocess(path, out);
 		return out != null ? out.toString() : "";
 	}
@@ -106,7 +115,12 @@ public class Preprocessor {
 	// Can handle both file or folder
 	private void preprocess(Path path, StringBuilder out) {
 		if (Files.isDirectory(path)) {
-			debugPrint(() -> "Including directory: " + colorify(path.toString(), filePathColor));
+			if (listFilesInInfo) {
+				filesTree.add(filesTree.isEmpty() ? context.relativize(path) : path.getFileName().toString());
+				filesTree.descend();
+			} else {
+				debugPrint(() -> "Including directory: " + colorify(path.toString(), filePathColor));
+			}
 			
 			// _initial.cfg
 			Path initial = path.resolve("_initial.cfg");
@@ -139,6 +153,10 @@ public class Preprocessor {
 			if (Files.exists(fin)) {
 				preprocessFile(fin, out);
 			}
+			
+			if (listFilesInInfo) {
+				filesTree.ascend();
+			}
 		} else {
 			preprocessFile(path, out);
 		}
@@ -152,22 +170,30 @@ public class Preprocessor {
 		this.currentPath = path;
 		this.currentPathUri = path.toUri().toString();
 
-		debugPrint(() -> "Preprocessing: " + colorify(this.currentPathUri, filePathColor));
+		if (listFilesInInfo) {
+			filesTree.add(filesTree.isEmpty() ? context.relativize(path) : path.getFileName().toString());
+		} else {
+			debugPrint(() -> "Preprocessing: " + colorify(this.currentPathUri, filePathColor));
+		}
 
 		try {
 			preprocessContent(Files.readString(path), buff);
 			
 			int newMacroCount = this.defines.size() - prevMacroCount;
-
-			Supplier<String> logMsg = () -> {
-				String msg = "Preprocessed %s" + (newMacroCount > 0 ? ": " + newMacroCount + " macros" : "");
-				String coloredPath = colorify(context.relativize(path), filePathColor);
-				return msg.formatted(coloredPath);
-			};
 			
 			if (listFilesInInfo) {
-				infoPrint(logMsg);
+//				Supplier<String> logMsg = () -> {
+//					String msg = "Preprocessed %s" + (newMacroCount > 0 ? ": " + newMacroCount + " macros" : "");
+//					String coloredPath = colorify(context.relativize(path), filePathColor);
+//					return msg.formatted(coloredPath);
+//				};
+//				infoPrint(logMsg);
 			} else {
+				Supplier<String> logMsg = () -> {
+					String msg = "Preprocessed %s" + (newMacroCount > 0 ? ": " + newMacroCount + " macros" : "");
+					String coloredPath = colorify(context.relativize(path), filePathColor);
+					return msg.formatted(coloredPath);
+				};
 				debugPrint(logMsg);
 			}
 			
@@ -184,7 +210,7 @@ public class Preprocessor {
 		
 		nonexistentMacros.forEach(k -> warningPrint(() -> "Undefined macro " + colorify(k, RED) + " in " + currentPathUri));
 	}
-	
+
 	public String preprocessString(String content) throws IOException {
 		var buff = new StringBuilder();
 		preprocessContent(content, buff);
@@ -511,16 +537,16 @@ public class Preprocessor {
 			warningPrint(() -> colorify(p.toString(), filePathColor) + " does not exist");
 			return;
 		}
-
-		Supplier<String> logMsg = () -> {
-			String coloredPath = colorify(pathStr, filePathColor);	
-			return "Including: " + coloredPath;
-		};
 		
 		if (listFilesInInfo) {
-			infoPrint(logMsg);
+			filesTree.descend();
+			filesTree.add("[Include] " + pathStr);
+			filesTree.ascend();
 		} else {
-			debugPrint(logMsg);
+			debugPrint(() -> {
+				String coloredPath = colorify(pathStr, filePathColor);
+				return "Including: " + coloredPath;
+			});
 		}
 
 		preprocess(p, buff);

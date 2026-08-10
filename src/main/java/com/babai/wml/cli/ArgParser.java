@@ -49,9 +49,6 @@ public class ArgParser {
 	@Option(names = {"-color", "--color"}, arity="1", description = "Toggle color in log messages (default: true)", paramLabel="<'true'|'false'>")
 	public boolean enableColors = true;
 	
-	@Option(names = {"--list-files", "-l"}, description = "List preprocessed file names in Info log (stderr)")
-	public boolean listFilesInInfo = false;
-	
 	@Option(names = {"-log-parse", "-log-p", "--log-parse"}, description = "Print all parser logs (= -log-level debug)")
 	public void setLogParse(boolean on) { if (on) logLevel = Level.FINER; }
 
@@ -74,6 +71,9 @@ public class ArgParser {
 	public boolean parse = true;
 
 	// -------------------- DATA EXTRACTION ---------------------------
+	
+	@Option(names = {"--list-files", "-l"}, description = "Print a tree of preprocessed file names in output. Output written to stdout or file pointed by -o.")
+	public boolean listFilesInInfo = false;
 	
 	public boolean extractUnitTypeData = false;
 	public Path unitTypeOutPath;
