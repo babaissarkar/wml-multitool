@@ -27,20 +27,22 @@ import static com.babai.wml.tokenizer.Token.Kind.*;
 public class Preprocessor {
 	private boolean skipElse = true;
 	private boolean expandMacro = true;
+	private HashSet<String> currentDefineArgs = new HashSet<>();
 	
 	private boolean listFilesInInfo = false;
 	private Tree<String> filesTree = new Tree<>();
 	
-	private MacroTable defines;
 	private PathContext context;
-	
 	private Path currentPath = Path.of(".");
 	private String currentPathUri;
 	
-	private HashSet<String> currentDefineArgs = new HashSet<>();
+	// used to keep track of duplicate files
+	private HashSet<Path> fileList = new HashSet<>();
+	
 	private HashMap<String, String> fileExplanations = new HashMap<>();
 	
 	// connected macrocall refs
+	private MacroTable defines;
 	private HashMap<String, HashSet<MacroCall>> macroCallsByName = new HashMap<>();
 	private HashMap<String, HashSet<MacroCall>> macroCallsByUri = new HashMap<>();
 
@@ -163,7 +165,18 @@ public class Preprocessor {
 	}
 
 	public void preprocessFile(Path path, StringBuilder buff) {
+		long start = System.nanoTime();
+		
 		int prevMacroCount = this.defines.size();
+		
+		boolean skip = fileList.contains(path); 
+		if (!skip) {
+			fileList.add(path);
+		} else {
+			debugPrint(() -> "Skipping duplicate: " + colorify(this.currentPathUri, filePathColor));
+			return;
+		}
+		
 		var oldPath = this.currentPath;
 		var oldPathUri = this.currentPathUri;
 		
@@ -172,6 +185,7 @@ public class Preprocessor {
 
 		if (listFilesInInfo) {
 			filesTree.add(filesTree.isEmpty() ? context.relativize(path) : path.getFileName().toString());
+			filesTree.descend();
 		} else {
 			debugPrint(() -> "Preprocessing: " + colorify(this.currentPathUri, filePathColor));
 		}
@@ -181,21 +195,12 @@ public class Preprocessor {
 			
 			int newMacroCount = this.defines.size() - prevMacroCount;
 			
-			if (listFilesInInfo) {
-//				Supplier<String> logMsg = () -> {
-//					String msg = "Preprocessed %s" + (newMacroCount > 0 ? ": " + newMacroCount + " macros" : "");
-//					String coloredPath = colorify(context.relativize(path), filePathColor);
-//					return msg.formatted(coloredPath);
-//				};
-//				infoPrint(logMsg);
-			} else {
-				Supplier<String> logMsg = () -> {
-					String msg = "Preprocessed %s" + (newMacroCount > 0 ? ": " + newMacroCount + " macros" : "");
-					String coloredPath = colorify(context.relativize(path), filePathColor);
-					return msg.formatted(coloredPath);
-				};
-				debugPrint(logMsg);
-			}
+			Supplier<String> logMsg = () -> {
+				String msg = "Preprocessed %s" + (newMacroCount > 0 ? ": " + newMacroCount + " macros" : "");
+				String coloredPath = colorify(context.relativize(path), filePathColor);
+				return msg.formatted(coloredPath);
+			};
+			debugPrint(logMsg);
 			
 			this.currentPath = oldPath;
 			this.currentPathUri = oldPathUri;
@@ -207,6 +212,14 @@ public class Preprocessor {
 			unitTypes.put(ut, path.toUri().toString());
 		}
 		Tokenizer.clearUnitTypes();
+		filesTree.ascend();
+		
+		if (!skip) {
+			long end = System.nanoTime();
+			filesTree.update(filesTree.current() + " " + (end - start) / 1_000 + " us");
+		} else {
+			filesTree.update(filesTree.current() + " (duplicate)");
+		}
 		
 		nonexistentMacros.forEach(k -> warningPrint(() -> "Undefined macro " + colorify(k, RED) + " in " + currentPathUri));
 	}
@@ -539,9 +552,8 @@ public class Preprocessor {
 		}
 		
 		if (listFilesInInfo) {
-			filesTree.descend();
 			filesTree.add("[Include] " + pathStr);
-			filesTree.ascend();
+			filesTree.descend();
 		} else {
 			debugPrint(() -> {
 				String coloredPath = colorify(pathStr, filePathColor);
@@ -550,6 +562,7 @@ public class Preprocessor {
 		}
 
 		preprocess(p, buff);
+		filesTree.ascend();
 	}
 
 	private void expandMacroCall(Token macroCall, HashSet<String> possibleArgs, StringBuilder buff) {
