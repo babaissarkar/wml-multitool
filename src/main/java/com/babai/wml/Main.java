@@ -145,7 +145,7 @@ public class Main {
 			
 			writeTime(
 				"Preprocessed " + colorify(pathContext.relativize(incpath), Colors.filePathColor) + ", "
-				+ (p.getDefines().size() - mCountStart) + " macros. ",
+				+ (p.getDefines().size() - mCountStart) + " macros.",
 				depStart);
 			
 		}
@@ -163,7 +163,7 @@ public class Main {
 			
 			writeTime(
 				"Preprocessed " + colorify(pathContext.relativize(argParser.inputPath), Colors.filePathColor) + ", "
-				+ (p.getDefines().size() - countStart) + " macros. ",
+				+ (p.getDefines().size() - countStart) + " macros.",
 				mainStart);
 		} else {
 			// since this is stdin, time/macro count is inconvenient. may or may not change later.
@@ -173,7 +173,7 @@ public class Main {
 		defines = p.getDefines();
 		fileExplanations = p.getFileExplanations();
 		
-		writeTime("Preprocess: " + defines.size() + " macros. ", start);
+		writeTime("Preprocess: " + defines.size() + " macros.", start);
 		start = System.nanoTime();
 		
 		if (argParser.definitions) {
@@ -221,7 +221,7 @@ public class Main {
 			
 			parser.parse(out);
 			
-			writeTime("Parse: ", start);
+			writeTime("Parse:", start);
 			
 			LogUtils.infoPrint(() -> "Binary Paths: " + binaryPaths);
 			LogUtils.infoPrint(() -> "Unit Types: " + unitTypes.size());
@@ -257,7 +257,11 @@ public class Main {
 	}
 
 	private static void writeTime(String msg, long start) {
+		LogUtils.infoPrint(() -> timeMsg(msg, start));
+	}
+	
+	public static String timeMsg(String header, long start) {
 		long end = System.nanoTime();
-		LogUtils.infoPrint(() -> msg + (end - start) / 1_000_000 + " ms");
+		return header + " " + (end - start) / 1_000_000 + " ms";
 	}
 }
