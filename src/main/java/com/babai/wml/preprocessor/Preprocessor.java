@@ -117,6 +117,8 @@ public class Preprocessor {
 	// Can handle both file or folder
 	private void preprocess(Path path, StringBuilder out) {
 		if (Files.isDirectory(path)) {
+			long start = System.nanoTime();
+			
 			if (listFilesInInfo) {
 				filesTree.add(filesTree.isEmpty() ? context.relativize(path) : path.getFileName().toString());
 				filesTree.descend();
@@ -158,6 +160,9 @@ public class Preprocessor {
 			
 			if (listFilesInInfo) {
 				filesTree.ascend();
+				
+				long end = System.nanoTime();
+				filesTree.update(filesTree.current() + " " + (end - start) / 1_000 + " us");
 			}
 		} else {
 			preprocessFile(path, out);
