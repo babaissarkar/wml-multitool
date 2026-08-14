@@ -9,12 +9,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.logging.Level;
 
 import com.babai.wml.cli.ANSIFormatter;
 import com.babai.wml.cli.ArgParser;
 import com.babai.wml.lsp.WMLLanguageServer;
 import com.babai.wml.output.DataWriter;
+import com.babai.wml.parser.ParseUtils;
 import com.babai.wml.parser.Parser;
 import com.babai.wml.parser.PathContext;
 import com.babai.wml.preprocessor.Definition;
@@ -214,9 +216,12 @@ public class Main {
 			parser.addQuery("//unit_type/id", v -> unitTypes.add(v));
 			parser.addQuery("binary_path/path", v -> binaryPaths.add(Path.of(v)));
 			
+			String queryFormat = System.getProperty("query.format", "Query {QUERY} result: {VAL}");
 			for (var q : argParser.queries) {
-				parser.addQuery(q, v ->
-					buff.append("Query ").append(q).append(" result: ").append(v).append("\n"));
+				parser.addQuery(q, v -> {
+					var substMap = Map.of("QUERY", q, "VAL", v);
+					buff.append(ParseUtils.substitute(queryFormat, substMap)).append("\n");
+				});
 			}
 			
 			parser.parse(out);
