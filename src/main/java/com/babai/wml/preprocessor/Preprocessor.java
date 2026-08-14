@@ -217,13 +217,16 @@ public class Preprocessor {
 			unitTypes.put(ut, path.toUri().toString());
 		}
 		Tokenizer.clearUnitTypes();
-		filesTree.ascend();
 		
-		if (!skip) {
-			long end = System.nanoTime();
-			filesTree.update(filesTree.current() + " " + (end - start) / 1_000 + " us");
-		} else {
-			filesTree.update(filesTree.current() + " (duplicate)");
+		if (listFilesInInfo) {
+			filesTree.ascend();
+		
+			if (!skip) {
+				long end = System.nanoTime();
+				filesTree.update(filesTree.current() + " " + (end - start) / 1_000 + " us");
+			} else {
+				filesTree.update(filesTree.current() + " (duplicate)");
+			}
 		}
 		
 		nonexistentMacros.forEach(k -> warningPrint(() -> "Undefined macro " + colorify(k, RED) + " in " + currentPathUri));
@@ -567,7 +570,10 @@ public class Preprocessor {
 		}
 
 		preprocess(p, buff);
-		filesTree.ascend();
+		
+		if (listFilesInInfo) {
+			filesTree.ascend();
+		}
 	}
 
 	private void expandMacroCall(Token macroCall, HashSet<String> possibleArgs, StringBuilder buff) {
