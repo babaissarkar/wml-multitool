@@ -15,6 +15,7 @@ import com.babai.wml.parser.ParseUtils;
 import com.babai.wml.parser.PathContext;
 import com.babai.wml.tokenizer.Token;
 import com.babai.wml.tokenizer.Tokenizer;
+import com.babai.wml.utils.MacroCallTable;
 import com.babai.wml.utils.MacroTable;
 import com.babai.wml.utils.Tree;
 
@@ -43,8 +44,7 @@ public class Preprocessor {
 	
 	// connected macrocall refs
 	private MacroTable defines;
-	private HashMap<String, HashSet<MacroCall>> macroCallsByName = new HashMap<>();
-	private HashMap<String, HashSet<MacroCall>> macroCallsByUri = new HashMap<>();
+	private MacroCallTable calls;
 
 	// TODO(Warning): this doesn't respect scope: a macro can be unavailable for a short span until
 	// it gets defined somewhere later. Perhaps each file can have a copy or something better.
@@ -56,12 +56,14 @@ public class Preprocessor {
 	public Preprocessor(PathContext context) {
 		this.context = context;
 		this.defines = new MacroTable();
+		this.calls = new MacroCallTable();
 	}
 
 	// usually for child processes
 	public Preprocessor(PathContext context, MacroTable defines) {
 		this.context = context;
 		this.defines = defines;
+		this.calls = new MacroCallTable(); // TODO check if this needs same treated as defines
 	}
 
 	public MacroTable getDefines() {
@@ -72,22 +74,8 @@ public class Preprocessor {
 		this.defines = t;
 	}
 	
-	public void clearMacroCalls() {
-		macroCallsByName.clear();
-		macroCallsByUri.clear();
-	}
-	
-	public void clearMacroCallsByUri(String uri) {
-		macroCallsByUri.remove(uri);
-		macroCallsByName.forEach((k, v) -> v.removeIf(m -> m.uri().equals(uri)));
-	}
-	
-	public HashSet<MacroCall> getMacroCallsByName(String name) {
-		return macroCallsByName.getOrDefault(name, new HashSet<>());
-	}
-	
-	public HashSet<MacroCall> getMacroCallsByUri(String uri) {
-		return macroCallsByUri.getOrDefault(uri, new HashSet<>());
+	public MacroCallTable getMacroCalls() {
+		return calls;
 	}
 	
 	public HashMap<String, String> getUnitTypes() {
@@ -322,7 +310,7 @@ public class Preprocessor {
 				handleDirective(t, itor, currentPathUri);
 			}
 		} else if (t.isKind(MACRO)) {
-			// exapnd macro tokens
+			// expand macro tokens
 			if (expandMacro) {
 				expandMacro(t, currentArgs, context, buff);
 			} else {
@@ -541,8 +529,8 @@ public class Preprocessor {
 						macroCall.beginColumn()-1,
 						info.second(),
 						currentPathUri);
-				macroCallsByName.computeIfAbsent(info.first(), k -> new HashSet<>()).add(mcall);
-				macroCallsByUri.computeIfAbsent(currentPathUri, k -> new HashSet<>()).add(mcall);
+				
+				calls.add(mcall);
 			}
 			
 			if (buff != null) {
@@ -634,8 +622,7 @@ public class Preprocessor {
 					macroCall.beginColumn()-1,
 					argPos,
 					currentPathUri);
-			macroCallsByName.computeIfAbsent(macroName, k -> new HashSet<>()).add(mcall);
-			macroCallsByUri.computeIfAbsent(currentPathUri, k -> new HashSet<>()).add(mcall);
+			calls.add(mcall);
 
 			debugPrint(() -> {
 				String argsString = Definition.argsAsString2(args, defArgs);

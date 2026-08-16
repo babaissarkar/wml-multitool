@@ -296,7 +296,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 		final String macroName = word;
 		List<Location> locations = new ArrayList<>();
 
-		for (MacroCall call : p.getMacroCallsByName(macroName)) {
+		for (MacroCall call : p.getMacroCalls().byName(macroName)) {
 			locations.add(new Location(call.uri(), macroNameRange(call)));
 		}
 
@@ -526,7 +526,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 		var viewRange = params.getRange();
 		List<InlayHint> hints = new ArrayList<>();
 
-		for (MacroCall call : p.getMacroCallsByUri(uri)) {
+		for (MacroCall call : p.getMacroCalls().byUri(uri)) {
 			// skip calls outside the visible range
 			if (call.startLine() > viewRange.getEnd().getLine()) continue;
 			if (call.startLine() < viewRange.getStart().getLine()) continue;
@@ -663,7 +663,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 	}
 
 	private void parseFile(String uri) {
-		p.clearMacroCallsByUri(uri);
+		p.getMacroCalls().clearByUri(uri);
 		defines.removeMacroByUri(uri);
 		unitTypes.entrySet().removeIf(e -> e.getValue().equals(uri));
 		
