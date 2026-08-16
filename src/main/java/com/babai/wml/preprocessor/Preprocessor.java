@@ -15,8 +15,6 @@ import com.babai.wml.parser.ParseUtils;
 import com.babai.wml.parser.PathContext;
 import com.babai.wml.tokenizer.Token;
 import com.babai.wml.tokenizer.Tokenizer;
-import com.babai.wml.utils.MacroCallTable;
-import com.babai.wml.utils.MacroTable;
 import com.babai.wml.utils.Tree;
 
 import static com.babai.wml.utils.Colors.*;
@@ -43,7 +41,7 @@ public class Preprocessor {
 	private HashMap<String, String> fileExplanations = new HashMap<>();
 	
 	// connected macrocall refs
-	private MacroTable defines;
+	private MacroDefTable defines;
 	private MacroCallTable calls;
 
 	// TODO(Warning): this doesn't respect scope: a macro can be unavailable for a short span until
@@ -55,22 +53,22 @@ public class Preprocessor {
 	// toplevel
 	public Preprocessor(PathContext context) {
 		this.context = context;
-		this.defines = new MacroTable();
+		this.defines = new MacroDefTable();
 		this.calls = new MacroCallTable();
 	}
 
 	// usually for child processes
-	public Preprocessor(PathContext context, MacroTable defines) {
+	public Preprocessor(PathContext context, MacroDefTable defines) {
 		this.context = context;
 		this.defines = defines;
 		this.calls = new MacroCallTable(); // TODO check if this needs same treated as defines
 	}
 
-	public MacroTable getDefines() {
+	public MacroDefTable getDefines() {
 		return defines;
 	}
 
-	public void setDefines(MacroTable t) {
+	public void setDefines(MacroDefTable t) {
 		this.defines = t;
 	}
 	
@@ -302,7 +300,7 @@ public class Preprocessor {
 		// TODO support line number, don't allow redefinition
 		String mdef = Tokenizer.getMainDefine();
 		if (mdef != null && !mdef.isEmpty() && !defines.hasMacro(mdef)) {
-			defines.addMacro(mdef, new Definition(mdef, "true"), 0, currentPathUri);
+			defines.addMacro(mdef, new MacroDef(mdef, "true"), 0, currentPathUri);
 		}
 		
 		if (t.isKind(COMMENT)) {
@@ -454,7 +452,7 @@ public class Preprocessor {
 			}
 
 			String body = consumeUntilEndDirective("#enddef", itor);
-			var def = new Definition(macroName, body, macroArgs, macroDefaultArgs);
+			var def = new MacroDef(macroName, body, macroArgs, macroDefaultArgs);
 
 				currentDefineArgs.clear(); // clear arg context
 
@@ -573,7 +571,7 @@ public class Preprocessor {
 
 		// ---------------------------------------
 
-		Definition def = defines.getMacro(macroName);
+		MacroDef def = defines.getMacro(macroName);
 		if (def != null) {
 			nonexistentMacros.remove(macroName);
 			
@@ -625,7 +623,7 @@ public class Preprocessor {
 			calls.add(mcall);
 
 			debugPrint(() -> {
-				String argsString = Definition.argsAsString2(args, defArgs);
+				String argsString = MacroDef.argsAsString2(args, defArgs);
 				return "expanding macro " + def.coloredName()
 					+ (!argsString.isEmpty() ? " with " + colorify(argsString, macroArgColor) : "");
 			});

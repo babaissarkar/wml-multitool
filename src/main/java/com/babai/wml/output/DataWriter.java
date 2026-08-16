@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
 import com.babai.wml.config.Config;
 import com.babai.wml.config.ConfigAttributeBase;
 import com.babai.wml.parser.PathContext;
-import com.babai.wml.preprocessor.Definition;
-import com.babai.wml.utils.MacroTable;
+import com.babai.wml.preprocessor.MacroDef;
+import com.babai.wml.preprocessor.MacroDefTable;
 
 public class DataWriter {
 	private final static Pattern linepattern = Pattern.compile("\\R");
@@ -73,7 +73,7 @@ public class DataWriter {
 
 	public static void generateMacroRef(
 			Path macroRefPath,
-			MacroTable defines,
+			MacroDefTable defines,
 			HashMap<String, String> fileExplanations,
 			PathContext pathContext)
 	{
@@ -119,7 +119,7 @@ public class DataWriter {
 				
 				for (String macroName : defines.macrosByUri(uriStr)) {
 					if (macroName.startsWith("INTERNAL:")) continue;
-					Definition def = defines.getMacro(macroName);
+					MacroDef def = defines.getMacro(macroName);
 					
 					// Macro name and arguments
 					writeln(writer, "<dt id='" + macroName + "'>");

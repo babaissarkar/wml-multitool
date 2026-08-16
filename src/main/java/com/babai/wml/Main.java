@@ -19,21 +19,21 @@ import com.babai.wml.output.DataWriter;
 import com.babai.wml.parser.ParseUtils;
 import com.babai.wml.parser.Parser;
 import com.babai.wml.parser.PathContext;
-import com.babai.wml.preprocessor.Definition;
+import com.babai.wml.preprocessor.MacroDef;
+import com.babai.wml.preprocessor.MacroDefTable;
 import com.babai.wml.preprocessor.Preprocessor;
 import com.babai.wml.tokenizer.Tokenizer;
 import com.babai.wml.utils.Colors;
 import com.babai.wml.utils.LogUtils;
-import com.babai.wml.utils.MacroTable;
 
 public class Main {
-	private static MacroTable defines, predefines;
+	private static MacroDefTable defines, predefines;
 	private static HashMap<String, String> fileExplanations;
 	private static PathContext pathContext;
 
 	public static void main(String[] args) {
-		defines = new MacroTable();
-		predefines = new MacroTable();
+		defines = new MacroDefTable();
+		predefines = new MacroDefTable();
 		
 		var argParser = new ArgParser();
 		argParser.parseArgs(args);
@@ -45,12 +45,12 @@ public class Main {
 			ANSIFormatter.setColorsEnabled(argParser.enableColors);
 		}
 		
-		predefines.addMacro("MULTIPLAYER", new Definition("MULTIPLAYER", "true"), 0, "predefined");
+		predefines.addMacro("MULTIPLAYER", new MacroDef("MULTIPLAYER", "true"), 0, "predefined");
 		
 		for (int i = 0; i < argParser.definesList.size(); i += 2) {
 			String name = argParser.definesList.get(i);
 			String val = argParser.definesList.get(i+1);
-			predefines.addMacro(name, new Definition(name, val), 0, "predefined");
+			predefines.addMacro(name, new MacroDef(name, val), 0, "predefined");
 		}
 		
 		// TODO autodetect if possible, requires preprocessing _main.cfg
@@ -61,7 +61,7 @@ public class Main {
 		}
 		
 		if (!hasDifficultyDefine) {
-			predefines.addMacro("NORMAL", new Definition("NORMAL", "true"), 0, "predefined");
+			predefines.addMacro("NORMAL", new MacroDef("NORMAL", "true"), 0, "predefined");
 		}
 		
 		if (argParser.startLSPServer) {

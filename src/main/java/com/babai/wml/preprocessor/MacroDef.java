@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 import com.babai.wml.parser.ParseUtils;
 import com.babai.wml.utils.Colors;
 
-public class Definition {
+public class MacroDef {
 	private String name, value, docs = "";
 	private List<String> args = new ArrayList<>();
 	private HashMap<String, String> defArgs = new HashMap<>();
@@ -23,19 +23,19 @@ public class Definition {
 	private String deprecationRemovalVersion;
 	private String deprecationMessage;
 
-	public Definition(String name, String value) {
+	public MacroDef(String name, String value) {
 		this.name = name;
 		this.value = value;
 	}
 
-	public Definition(String name, String value, List<String> args) {
+	public MacroDef(String name, String value, List<String> args) {
 		this.name = name;
 		this.value = value;
 		this.args = args;
 		allArgs = new HashSet<>(args);
 	}
 
-	public Definition(String name, String value, List<String> args, HashMap<String, String> defArgs) {
+	public MacroDef(String name, String value, List<String> args, HashMap<String, String> defArgs) {
 		this.name = name;
 		this.value = value;
 		this.args = args;

@@ -1,9 +1,7 @@
-package com.babai.wml.utils;
+package com.babai.wml.preprocessor;
 
 import java.util.HashMap;
 import java.util.HashSet;
-
-import com.babai.wml.preprocessor.MacroCall;
 
 public class MacroCallTable {
 	private HashMap<String, HashSet<MacroCall>> macroCallsByName = new HashMap<>();

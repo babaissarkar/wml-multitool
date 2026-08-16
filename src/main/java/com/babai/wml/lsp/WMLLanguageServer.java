@@ -68,13 +68,13 @@ import org.eclipse.lsp4j.services.TextDocumentService;
 import org.eclipse.lsp4j.services.WorkspaceService;
 
 import com.babai.wml.parser.PathContext;
-import com.babai.wml.preprocessor.Definition;
+import com.babai.wml.preprocessor.MacroDef;
 import com.babai.wml.preprocessor.MacroCall;
+import com.babai.wml.preprocessor.MacroDefTable;
 import com.babai.wml.preprocessor.Preprocessor;
 import com.babai.wml.tokenizer.Tokenizer;
 import com.babai.wml.utils.FS;
 import com.babai.wml.utils.LogUtils;
-import com.babai.wml.utils.MacroTable;
 
 import static org.eclipse.lsp4j.launch.LSPLauncher.createServerLauncher;
 
@@ -94,7 +94,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 	private PathContext pathContext;
 	String workspaceUri = null;
 
-	private MacroTable defines;
+	private MacroDefTable defines;
 	private HashMap<String, String> unitTypes = new HashMap<>();
 	private Set<Path> binaryPaths = new HashSet<>();
 	private List<Path> includePaths = new ArrayList<>();
@@ -105,7 +105,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 	
 	private Preprocessor p;
 
-	private WMLLanguageServer(MacroTable predefines, PathContext ctxt, List<Path> includePaths) {
+	private WMLLanguageServer(MacroDefTable predefines, PathContext ctxt, List<Path> includePaths) {
 		this.pathContext = ctxt;
 		this.includePaths = includePaths;
 		this.defines = predefines;
@@ -115,7 +115,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 		initTagRefLinks();
 	}
 	
-	public static void initServer(MacroTable predefines, Path dataPath, Path userDataPath, List<Path> includes) {
+	public static void initServer(MacroDefTable predefines, Path dataPath, Path userDataPath, List<Path> includes) {
 		LogUtils.setLogLevel(Level.OFF);
 
 		var server = new WMLLanguageServer(
@@ -385,7 +385,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 				);
 			} else if (defines != null && defines.hasMacro(word)) {
 				// Macro calls
-				Definition def = defines.getMacro(word);
+				MacroDef def = defines.getMacro(word);
 				content.setKind("markdown");
 				var buff = new StringBuilder();
 				buff.append("**").append(def.name()).append("**\n\n").append(def.getDocs());

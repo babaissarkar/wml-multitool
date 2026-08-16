@@ -1,26 +1,24 @@
-package com.babai.wml.utils;
+package com.babai.wml.preprocessor;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import com.babai.wml.preprocessor.Definition;
-
-public class MacroTable {
-	Map<String, Definition> nameValMap;
+public class MacroDefTable {
+	Map<String, MacroDef> nameValMap;
 	Map<String, Integer> nameLineNumMap;
 	Map<String, String> nameUriMap;
 	Map<String, Set<String>> uriNamelistMap;
 	
-	public MacroTable() {
+	public MacroDefTable() {
 		nameValMap = new HashMap<>();
 		nameLineNumMap = new HashMap<>();
 		nameUriMap = new HashMap<>();
 		uriNamelistMap = new HashMap<>();
 	}
 	
-	public MacroTable(MacroTable defines) {
+	public MacroDefTable(MacroDefTable defines) {
 		this();
 		nameValMap.putAll(defines.nameValMap);
 		nameLineNumMap.putAll(defines.nameLineNumMap);
@@ -28,7 +26,7 @@ public class MacroTable {
 		uriNamelistMap.putAll(defines.uriNamelistMap);
 	}
 
-	public void addMacro(String name, Definition def, Integer linenum, String uri) {
+	public void addMacro(String name, MacroDef def, Integer linenum, String uri) {
 		//TODO duplicate warning
 		nameValMap.put(name, def);
 		nameLineNumMap.put(name, linenum);
@@ -40,7 +38,7 @@ public class MacroTable {
 		return nameValMap.containsKey(name);
 	}
 	
-	public Definition getMacro(String name) {
+	public MacroDef getMacro(String name) {
 		return nameValMap.get(name);
 	}
 	
@@ -68,7 +66,7 @@ public class MacroTable {
 		return nameLineNumMap.get(name);
 	}
 	
-	public Map<String, Definition> macros() {
+	public Map<String, MacroDef> macros() {
 		return nameValMap;
 	}
 	
