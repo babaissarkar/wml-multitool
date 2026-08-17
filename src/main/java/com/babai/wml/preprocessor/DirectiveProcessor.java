@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 
 import com.babai.wml.tokenizer.Token;
-import com.babai.wml.tokenizer.TokenProcessor;
 import com.babai.wml.tokenizer.Tokenizer;
 
 import static com.babai.wml.cli.ANSIFormatter.colorify;
