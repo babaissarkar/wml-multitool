@@ -25,8 +25,6 @@ import static com.babai.wml.utils.LogUtils.position;
 public class DirectiveProcessor {
 	private boolean skipElse = true;
 	
-	private Map<String, String> fileExplanations = new HashMap<>();
-	
 	private TokenProcessor tokenProcessor = null;
 	
 	public DirectiveProcessor(TokenProcessor processor) {
@@ -156,7 +154,7 @@ public class DirectiveProcessor {
 		}
 	}
 	
-	private String handleDocComment(Tokenizer itor) {
+	public String handleDocComment(Tokenizer itor) {
 		skip(itor, EOL);
 
 		skip(itor, WHITESPACE);
@@ -226,10 +224,6 @@ public class DirectiveProcessor {
 			}
 		}
 		return;
-	}
-	
-	public Map<String, String> getFileExplanations() {
-		return fileExplanations;
 	}
 	
 	private record DirectiveHeader(String head, List<String> args) {

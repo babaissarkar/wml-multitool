@@ -31,6 +31,8 @@ public class Preprocessor implements TokenProcessor {
 	private boolean listFilesInInfo = false;
 	private Tree<String> filesTree = new Tree<>();
 	
+	private Map<String, String> fileExplanations = new HashMap<>();
+	
 	private PathContext context;
 	private Path currentPath = Path.of(".");
 	private String currentPathUri;
@@ -209,6 +211,13 @@ public class Preprocessor implements TokenProcessor {
 		skip(itor, EOL);
 
 		skip(itor, WHITESPACE);
+
+		if (peek(itor).isDirectiveName("#textdomain", true)) {
+			Token t = itor.next();
+			directiveProcessor.handleDirective(t, itor, defines, currentPathUri);
+		}
+
+		fileExplanations.put(currentPathUri, directiveProcessor.handleDocComment(itor));
 
 		while (itor.hasNext()) {
 			Token t = itor.next();
@@ -459,7 +468,7 @@ public class Preprocessor implements TokenProcessor {
 	}
 
 	public Map<String, String> getFileExplanations() {
-		return directiveProcessor.getFileExplanations();
+		return fileExplanations;
 	}
 	
 	public MacroDefTable getDefines() {
