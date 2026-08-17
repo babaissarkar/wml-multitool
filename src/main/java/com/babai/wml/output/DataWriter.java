@@ -9,8 +9,8 @@ import java.net.URI;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import java.util.LinkedHashMap;
 import java.util.regex.Pattern;
 
@@ -23,7 +23,7 @@ import com.babai.wml.preprocessor.MacroDefTable;
 public class DataWriter {
 	private final static Pattern linepattern = Pattern.compile("\\R");
 	
-	public static void writeUnitTypeData(HashSet<Config> unitTypeData, Path unitTypeOutPath) {
+	public static void writeUnitTypeData(Set<Config> unitTypeData, Path unitTypeOutPath) {
 		final String[] UNIT_TYPE_COLUMNS = {
 			"id",
 			"race",
@@ -74,7 +74,7 @@ public class DataWriter {
 	public static void generateMacroRef(
 			Path macroRefPath,
 			MacroDefTable defines,
-			HashMap<String, String> fileExplanations,
+			Map<String, String> fileExplanations,
 			PathContext pathContext)
 	{
 		try (BufferedWriter writer = Files.newBufferedWriter(macroRefPath)) {
@@ -82,7 +82,7 @@ public class DataWriter {
 			writer.write("<div class='filelist'><ul>");
 			
 			// File list at top
-			HashMap<String, String> uriList = new LinkedHashMap<>();
+			Map<String, String> uriList = new LinkedHashMap<>();
 			// URI column contains duplicates, suppress them.
 			// we only need unique values for getRows() below.
 			// List of parsed files at top

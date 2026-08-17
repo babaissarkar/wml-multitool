@@ -7,9 +7,9 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 
 import com.babai.wml.cli.ANSIFormatter;
@@ -28,7 +28,7 @@ import com.babai.wml.utils.LogUtils;
 
 public class Main {
 	private static MacroDefTable defines, predefines;
-	private static HashMap<String, String> fileExplanations;
+	private static Map<String, String> fileExplanations;
 	private static PathContext pathContext;
 
 	public static void main(String[] args) {
@@ -206,8 +206,8 @@ public class Main {
 		
 		// Parsing and queries
 		if (argParser.parse && !fastMode) {
-			HashSet<Path> binaryPaths = new HashSet<>();
-			HashSet<String> unitTypes = new HashSet<>();
+			Set<Path> binaryPaths = new HashSet<>();
+			Set<String> unitTypes = new HashSet<>();
 			var buff = new StringBuilder();
 			
 			binaryPaths.add(Path.of("data/core"));
