@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
+import com.babai.wml.parser.ParseUtils;
+
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -18,18 +20,26 @@ public class ArgParser {
 
 	@Option(names = {"-fastMode", "-fm", "--fastMode"}, description = "Fast Mode (skips macro expansion and parsing, only scraps data). Autoenabled internally for -df/-gmr/-s.")
 	public boolean fastMode = false;
-
-	@Option(
-		names = {"-datadir", "--datadir"},
-		description = "Absolute path to Wesnoth's data directory. Can also be specified via environment variable WESNOTH_DATA.",
-		defaultValue="${env:WESNOTH_DATA}")
+	
 	public Path dataPath;
 
 	@Option(
-		names = {"-userdatadir", "--userdatadir"},
-		description = "If specified, sets absolute path to Wesnoth's userdata directory. Can also be specified via environment variable WESNOTH_USERDATA. If not specified, parent directories of input is checked one by one until a 'data' directory is found, and it's parent is then set to be the userdata directory.",
-		defaultValue="${env:WESNOTH_USERDATA}")
+		names = {"-datadir", "--datadir"},
+		description = "Absolute path to Wesnoth's data directory. Can also be specified via environment variable WESNOTH_DATA. Surrounding quotes are stripped automatically.",
+		defaultValue = "${env:WESNOTH_DATA}")
+	public void setDataPath(String value) {
+		this.dataPath = Path.of(ParseUtils.stripMatchingQuotes(value));
+	}
+
 	public Path userDataPath;
+	
+	@Option(
+		names = {"-userdatadir", "--userdatadir"},
+		description = "If specified, sets absolute path to Wesnoth's userdata directory. Can also be specified via environment variable WESNOTH_USERDATA. If not specified, parent directories of input is checked one by one until a 'data' directory is found, and its parent is then set to be the userdata directory. Surrounding quotes are stripped automatically.",
+		defaultValue = "${env:WESNOTH_USERDATA}")
+	public void setUserDataPath(String value) {
+		this.userDataPath = Path.of(ParseUtils.stripMatchingQuotes(value));
+	}
 	
 	@Option(names = {"-i", "-include", "--include"}, arity = "1", description = "File/folders to be preprocessed before to collect macro definitions")
 	public List<Path> includes = new ArrayList<>();

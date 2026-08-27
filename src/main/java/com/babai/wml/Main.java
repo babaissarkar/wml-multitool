@@ -65,7 +65,8 @@ public class Main {
 		}
 		
 		if (argParser.startLSPServer) {
-			WMLLanguageServer.initServer(predefines, argParser.dataPath, argParser.userDataPath, argParser.includes);
+			WMLLanguageServer.initServer(
+				predefines, argParser.dataPath, argParser.userDataPath, argParser.includes);
 		} else {
 			try {
 				initParse(argParser);

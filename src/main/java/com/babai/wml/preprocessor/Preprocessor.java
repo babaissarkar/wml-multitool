@@ -390,7 +390,7 @@ public class Preprocessor implements TokenProcessor {
 					if (eqPos != -1) {
 						String key = str.substring(0, eqPos);
 						if (def.getDefArgs().containsKey(key)) {
-							defArgs.put(key, stripMatchingQuotes(str.substring(eqPos + 1)));
+							defArgs.put(key, ParseUtils.stripMatchingQuotes(str.substring(eqPos + 1)));
 						} else {
 							// TODO error: invalid defarg passed
 						}
@@ -450,17 +450,6 @@ public class Preprocessor implements TokenProcessor {
 				macroCall.raw(buff);
 			}
 		}
-	}
-
-	private String stripMatchingQuotes(String argVal) {
-		// Keyword args are parsed from raw macro text and may carry wrapper quotes
-		// (e.g. KEY="value"). Keep inner content and drop only a matching outer pair.
-		if (argVal == null) return null;
-		int len = argVal.length();
-		if (len >= 2 && argVal.charAt(0) == '"' && argVal.charAt(len-1) == '"') {
-			return argVal.substring(1, len - 1);
-		}
-		return argVal;
 	}
 
 	public void expandMacros(boolean expand) {

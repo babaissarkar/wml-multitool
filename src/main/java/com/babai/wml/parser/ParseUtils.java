@@ -39,6 +39,16 @@ public final class ParseUtils {
 		}
 	}
 
+	public static String stripMatchingQuotes(String s) {
+		// Keyword args are parsed from raw macro text and may carry wrapper quotes
+		// (e.g. KEY="value"). Keep inner content and drop only a matching outer pair.
+		if (s == null || s.length() < 2) return s;
+		char first = s.charAt(0), last = s.charAt(s.length() - 1);
+		if ((first == '"' && last == '"') || (first == '\'' && last == '\''))
+			return s.substring(1, s.length() - 1);
+		return s;
+	}
+
 	public record Pair<T, V>(T first, V second) {};
 
 	public static Pair<String, List<Integer>> parseMacroCall(String macro) {
