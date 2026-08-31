@@ -1,138 +1,233 @@
 package com.babai.wml.cli;
 
+import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
-import com.babai.wml.parser.ParseUtils;
+import com.babai.wml.Main;
+import com.babai.wml.utils.LogUtils;
 
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
+import static com.babai.wml.parser.ParseUtils.stripMatchingQuotes;
 
-@Command(name = "wml", version = "WML Multitool and LSP, version 2.0.0", mixinStandardHelpOptions = true)
 public class ArgParser {
 
-	@Option(names = {"-server", "-s", "--server"}, description = "Run in LSP server mode.")
-	public boolean startLSPServer = false;
+    // ── Server / mode ────────────────────────────────────────────────────────
+    public boolean startLSPServer = false;
+    public boolean fastMode       = false;
 
-	@Option(names = {"-fastMode", "-fm", "--fastMode"}, description = "Fast Mode (skips macro expansion and parsing, only scraps data). Autoenabled internally for -df/-gmr/-s.")
-	public boolean fastMode = false;
-	
-	public Path dataPath;
+    // ── Paths ────────────────────────────────────────────────────────────────
+    public Path        dataPath;
+    public Path        userDataPath;
+    public List<Path>  includes  = new ArrayList<>();
+    public Path        inputPath;
+    public Path        outputPath;
+    public PrintStream out       = null;
 
-	@Option(
-		names = {"-datadir", "--datadir"},
-		description = "Absolute path to Wesnoth's data directory. Can also be specified via environment variable WESNOTH_DATA. Surrounding quotes are stripped automatically.",
-		defaultValue = "${env:WESNOTH_DATA}")
-	public void setDataPath(String value) {
-		this.dataPath = Path.of(ParseUtils.stripMatchingQuotes(value));
-	}
+    // ── Defines ──────────────────────────────────────────────────────────────
+    public List<String> definesList = new ArrayList<>();
 
-	public Path userDataPath;
-	
-	@Option(
-		names = {"-userdatadir", "--userdatadir"},
-		description = "If specified, sets absolute path to Wesnoth's userdata directory. Can also be specified via environment variable WESNOTH_USERDATA. If not specified, parent directories of input is checked one by one until a 'data' directory is found, and its parent is then set to be the userdata directory. Surrounding quotes are stripped automatically.",
-		defaultValue = "${env:WESNOTH_USERDATA}")
-	public void setUserDataPath(String value) {
-		this.userDataPath = Path.of(ParseUtils.stripMatchingQuotes(value));
-	}
-	
-	@Option(names = {"-i", "-include", "--include"}, arity = "1", description = "File/folders to be preprocessed before to collect macro definitions")
-	public List<Path> includes = new ArrayList<>();
+    // ── Logging ──────────────────────────────────────────────────────────────
+    public Level   logLevel     = Level.INFO;
+    public boolean enableColors = true;
 
-	@Option(names = {"-define", "-d", "--define"}, arity = "2", description = "Define macro: -define NAME BODY. 'MULTIPLAYER' is defined automatically, as well as 'NORMAL', if no difficulty macro (EASY/NORMAL/HARD/NIGHTMARE) is defined via this option. ", paramLabel = "NAME BODY", hideParamSyntax = true)
-	public List<String> definesList = new ArrayList<>();
-	
-	@Parameters(index = "0", arity = "0..1", paramLabel = "INPUT", description = "Path to the main input file or folder (default: stdin). Not needed in LSP mode (-s).")
-	public Path inputPath;
+    // ── Parsing ──────────────────────────────────────────────────────────────
+    public boolean parse = true;
 
-	@Option(names = {"-o", "-output", "--output"}, description = "Path to a file to write output to (default: stdout)")
-	public Path outputPath;
+    // ── Data extraction / queries ─────────────────────────────────────────────
+    public boolean      listFilesInInfo    = false;
+    public boolean      extractUnitTypeData = false;
+    public Path         unitTypeOutPath;
+    public boolean      generateMacroRef   = false;
+    public Path         macroRefPath;
+    public boolean      definitions        = false;
+    public List<String> queries            = new ArrayList<>();
 
-	// -------------- LOGGING ----------------
-	public Level logLevel = Level.INFO;
+    // ─────────────────────────────────────────────────────────────────────────
 
-	@Option(names = {"-color", "--color"}, arity="1", description = "Toggle color in log messages (default: true)", paramLabel="<'true'|'false'>")
-	public boolean enableColors = true;
-	
-	@Option(names = {"-log-parse", "-log-p", "--log-parse"}, description = "Print all parser logs (= -log-level debug)")
-	public void setLogParse(boolean on) { if (on) logLevel = Level.FINER; }
+    private static final String VERSION = "WML Multitool and LSP, version 2.0.0";
 
-	@Option(names = {"-warn-parse", "-warn-p", "--warn-parse"}, description = "Print parser warnings only (= -log-level warn)")
-	public void setWarnParse(boolean on) { if (on) logLevel = Level.WARNING; }
+    // Insertion-ordered map.
+    // - Normal entry : key = flags string,        value = description
+    // - Section header: key = "§" + section name, value = null
+    private final LinkedHashMap<String, String> optMap = new LinkedHashMap<>();
 
-	@Option(names = {"-log-level", "--log-level"}, description = "Set log level to following values severe|warn|info|debug|off", paramLabel = "<'severe'|'warn'|'info'|'debug'|'off'>")
-	public void setLogLevel(String level) {
-		logLevel = switch (level) {
-		case "severe" -> Level.SEVERE;
-		case "warn"   -> Level.WARNING;
-		case "info"   -> Level.INFO;
-		case "debug"  -> Level.FINER;
-		case "off"    -> Level.OFF;
-		default       -> Level.INFO;
-		};
-	}
-	
-	@Option(names = { "-parse", "--parse" }, arity="1", description = "Toggle parsing preprocessed output (default: true). Disables WML Queries and Binary Path detection if disabled.")
-	public boolean parse = true;
+    // ── Construction ──────────────────────────────────────────────────────────
 
-	// -------------------- DATA EXTRACTION ---------------------------
-	
-	@Option(names = {"--list-files", "-l"}, description = "Print a tree of preprocessed file names in output. Output written to stdout or file pointed by -o.")
-	public boolean listFilesInInfo = false;
-	
-	public boolean extractUnitTypeData = false;
-	public Path unitTypeOutPath;
-	
-	// TODO unimplemented in code yet
-	@Option(names = {"-extract-unit-type", "-eut", "--extract-unit-type"}, description = "Extract unit type data to CSV at given path", paramLabel = "<outputPath>", hidden = true)
-	public void setExtractUnitTypeDataPath(String path) {
-		extractUnitTypeData = true;
-		unitTypeOutPath = Path.of(path);
-	}
-	
-	public boolean generateMacroRef = false;
-	public Path macroRefPath;
+    public ArgParser() {
+        registerOptions();
+        applyEnvDefaults();
+    }
 
-	@Option(names = {"-generate-macro-ref", "-gmr", "--generate-macro-ref"}, description = "Generate HTML macro reference file", paramLabel = "<outputPath>")
-	public void setMacroRefPath(String path) {
-		generateMacroRef = true;
-		macroRefPath = Path.of(path);
-	}
-	
-	@Option(names = {"-df", "-definitions", "--definitions"}, description = "List all macro definitions. Output written to stdout or file pointed by -o.")
-	public boolean definitions = false;
-	
-	@Option(names = {"-q", "-query", "--query"}, description = "XPath-style WML query. Any tag/key matching this will be printed to stdout or file pointed by -o.")
-	public List<String> queries = new ArrayList<>();
-	
-	// --------------- help + version -------------
-	
-	@Option(names = {"-h", "-help", "--help", "-?"}, usageHelp = true, description = "Print this help")
-	private boolean helpRequested;
-	
-	@Option(names = {"-v", "-version", "--version"}, versionHelp = true, description = "Print version information")
-	private boolean versionRequested;
+    private void registerOptions() {
+        section("Server / mode");
+        opt("-server, -s",                        "Start as WML LSP server");
+        opt("-fastMode, -fm",                     "Fast mode: skip macro expansion & parsing. Auto-enabled for -df, -gmr, -s.");
 
-	public void parseArgs(String[] args) {
-		CommandLine cmd = new CommandLine(this);
-		cmd.setUsageHelpAutoWidth(true);
-		try {
-			CommandLine.ParseResult result = cmd.parseArgs(args);
-			if (result.isUsageHelpRequested()) {
-				cmd.usage(System.out);
-				System.exit(0);
-			} else if (result.isVersionHelpRequested()) {
-				cmd.printVersionHelp(System.out);
-				System.exit(0);
-			}
-		} catch (CommandLine.ParameterException ex) {
-			System.err.println(ex.getMessage());
-			cmd.usage(System.err);
-		}
-	}
+        section("Paths");
+        opt("-datadir <path>",                    "Absolute path to Wesnoth data dir (or env: WESNOTH_DATA)");
+        opt("-userdatadir <path>",                "Absolute path to Wesnoth userdata dir (or env: WESNOTH_USERDATA)");
+        opt("-i, -include <path>",                "Preprocess file/folder to collect macro definitions. Repeatable.");
+        opt("-o, -output <path>",                 "Write output to file (default: stdout)");
+
+        section("Defines");
+        opt("-define, -d <NAME> <BODY>",          "Define macro before parsing. Repeatable.");
+
+        section("Logging");
+        opt("-log-parse, -log-p",                 "Parser debug logs (= -log-level debug)");
+        opt("-warn-parse, -warn-p",               "Parser warnings only (= -log-level warn)");
+        opt("-log-level <severe|warn|info|debug|off>", "Set log level explicitly");
+        opt("-color <true|false>",                "Toggle ANSI color in logs (default: true)");
+
+        section("Parsing");
+        opt("-parse <true|false>",                "Toggle parsing preprocessed output (default: true)");
+
+        section("Data extraction / queries");
+        opt("-l, -list-files",                    "Print tree of preprocessed file names");
+        opt("-df, -definitions",                  "List all macro definitions");
+        opt("-q, -query <expr>",                  "XPath-style WML query. Repeatable.");
+        opt("-eut, -extract-unit-type <path>",    "Extract unit type data to CSV");
+        opt("-gmr, -generate-macro-ref <path>",   "Generate HTML macro reference");
+
+        section("Help / version");
+        opt("-h, -help, -?",                      "Print this help");
+        opt("-v, -version",                       "Print version information");
+    }
+
+    /** Add a section header to the usage output. */
+    private void section(String name) {
+        optMap.put("§" + name, null);
+    }
+
+    /** Register one option with its description. */
+    private void opt(String flags, String desc) {
+        optMap.put(flags, desc);
+    }
+
+    /** Build the usage string dynamically from optMap. */
+    private String buildUsage() {
+        int colWidth = 0;
+        for (Map.Entry<String, String> e : optMap.entrySet()) {
+            if (e.getValue() != null && e.getKey().length() > colWidth) {
+                colWidth = e.getKey().length();
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Usage: wml [OPTIONS] [INPUT]\n");
+        sb.append("\nArguments:\n");
+        sb.append("  INPUT   Path to the main input file or folder (not needed in LSP mode -s)\n");
+        sb.append("\nOptions:");
+
+        for (Map.Entry<String, String> e : optMap.entrySet()) {
+            if (e.getValue() == null) {
+                // Section header — strip the § sentinel
+                sb.append("\n\n  ").append(e.getKey().substring(1)).append(":\n");
+            } else {
+                sb.append(String.format("    %-" + colWidth + "s   %s%n",
+                        e.getKey(), e.getValue()));
+            }
+        }
+        return sb.toString();
+    }
+
+    // ── Env-var defaults ──────────────────────────────────────────────────────
+
+    private void applyEnvDefaults() {
+        String envData = System.getenv("WESNOTH_DATA");
+        if (envData != null && !envData.isBlank()) {
+            dataPath = Path.of(stripMatchingQuotes(envData));
+        }
+        String envUserData = System.getenv("WESNOTH_USERDATA");
+        if (envUserData != null && !envUserData.isBlank()) {
+            userDataPath = Path.of(stripMatchingQuotes(envUserData));
+        }
+    }
+
+    // ── Parsing ───────────────────────────────────────────────────────────────
+
+    public void parseArgs(String[] args) {
+    	long aSt = System.nanoTime();
+    	
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+
+            // Positional argument → inputPath
+            if (!arg.startsWith("-") && !arg.startsWith("/")) {
+                inputPath = Path.of(arg);
+                continue;
+            }
+
+            if (arg.startsWith("--"))                     arg = arg.substring(2);
+            else if (arg.startsWith("-") || arg.startsWith("/")) arg = arg.substring(1);
+
+            switch (arg) {
+
+                // ── Server / mode ─────────────────────────────────────────
+                case "server", "s"    -> startLSPServer = true;
+                case "fastMode", "fm" -> fastMode = true;
+
+                // ── Paths ─────────────────────────────────────────────────
+                case "datadir"     -> dataPath     = Path.of(stripMatchingQuotes(args[++i]));
+                case "userdatadir" -> userDataPath = Path.of(stripMatchingQuotes(args[++i]));
+
+                case "i", "include" -> {
+                    try { includes.add(Path.of(stripMatchingQuotes(args[++i]))); }
+                    catch (Exception e) { e.printStackTrace(); }
+                }
+                case "o", "output" -> {
+                    try {
+                        outputPath = Path.of(stripMatchingQuotes(args[++i]));
+                        out = new PrintStream(Files.newOutputStream(outputPath));
+                    } catch (Exception e) { e.printStackTrace(); }
+                }
+
+                // ── Defines ───────────────────────────────────────────────
+                case "define", "d" -> {
+                    definesList.add(args[++i]); // NAME
+                    definesList.add(args[++i]); // BODY
+                }
+
+                // ── Logging ───────────────────────────────────────────────
+                case "log-parse", "log-p"   -> logLevel = Level.FINER;
+                case "warn-parse", "warn-p" -> logLevel = Level.WARNING;
+                case "log-level" -> logLevel = switch (args[++i]) {
+                    case "severe" -> Level.SEVERE;
+                    case "warn"   -> Level.WARNING;
+                    case "info"   -> Level.INFO;
+                    case "debug"  -> Level.FINER;
+                    case "off"    -> Level.OFF;
+                    default       -> Level.INFO;
+                };
+                case "color" -> enableColors = Boolean.parseBoolean(args[++i]);
+
+                // ── Parsing ───────────────────────────────────────────────
+                case "parse" -> parse = Boolean.parseBoolean(args[++i]);
+
+                // ── Data extraction / queries ─────────────────────────────
+                case "l", "list-files"   -> listFilesInInfo = true;
+                case "df", "definitions" -> definitions = true;
+                case "q", "query"        -> queries.add(args[++i]);
+
+                case "eut", "extract-unit-type" -> {
+                    extractUnitTypeData = true;
+                    unitTypeOutPath = Path.of(args[++i]);
+                }
+                case "gmr", "generate-macro-ref" -> {
+                    generateMacroRef = true;
+                    macroRefPath = Path.of(args[++i]);
+                }
+
+                // ── Help / version ────────────────────────────────────────
+                case "h", "help", "?" -> { System.out.println(buildUsage()); System.exit(0); }
+                case "v", "version"   -> { System.out.println(VERSION);      System.exit(0); }
+            }
+        }
+        
+        LogUtils.infoPrint(() -> Main.timeMsg("Args parsed:", aSt));
+    }
 }

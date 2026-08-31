@@ -39,10 +39,6 @@ dependencies {
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:${lsp4jVersion}"
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j.jsonrpc:${lsp4jVersion}"
 
-    // CLI arg processing
-    implementation 'info.picocli:picocli:4.7.7'
-    annotationProcessor 'info.picocli:picocli-codegen:4.7.7'
-
     // Unit testing
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.0'
 }
@@ -64,7 +60,7 @@ shadowJar {
     }
 
     // Only bundle the runtime deps that were explicitly included in the
-    // Maven shade <artifactSet><includes> (gson, lsp4j, lsp4j.jsonrpc, picocli).
+    // Maven shade <artifactSet><includes> (gson, lsp4j, lsp4j.jsonrpc).
     // JUnit is test-only so it's excluded automatically since it's testImplementation.
 
     exclude 'META-INF/*.SF'
