@@ -42,7 +42,7 @@ Options:
   Data extraction / queries:
     -l, -list-files                           Print tree of preprocessed file names
     -df, -definitions                         List all macro definitions
-    -q, -query <expr>                         XPath-style WML query. Repeatable.
+    -q, -query <expr>                         XPath-style WML query. Repeatable. Comma shorthand: -q tag/a,b,c expands to three queries. Multiple queries emit one row per shared top-level tag.
     -eut, -extract-unit-type <path>           Extract unit type data to CSV
     -gmr, -generate-macro-ref <path>          Generate HTML macro reference
 
@@ -68,6 +68,27 @@ Options:
 * Macro reference generation
 * Custom WML queries into WML codebases
 * Unit Type data extraction (WIP)
+
+### Queries
+
+**Single query** — prints one line per matched value. The default format is `{VALUE}`; customize with `-Dquery.format`.
+
+**Multi-query rows** — two or more `-q` options that share a top-level tag emit one result row per occurrence of that tag. Both of these are equivalent:
+
+```bash
+-q "//unit_type/id" -q "//unit_type/name" -q "//unit_type/level"
+-q "//unit_type/id,name,level"
+```
+
+The comma shorthand expands inside the query parser — the prefix up to the last `/` before the first comma is shared, and each comma-separated field becomes its own column.
+
+The default row format is `{VALUE1}, {VALUE2}, …` (auto-generated from column count). Customize with `-Dquery.format`, using `{VALUE1}` through `{VALUEn}` as placeholders:
+
+```bash
+-Dquery.format='{VALUE1} ({VALUE2})'
+```
+
+Repeated matches within one column are joined with `|`; missing values are empty strings.
 
 ### Usage
 * **VSCode**: Use the extension from [here](https://github.com/babaissarkar/wml-extension).

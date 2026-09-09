@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -217,12 +218,34 @@ public class Main {
 			parser.addQuery("//unit_type/id", v -> unitTypes.add(v));
 			parser.addQuery("binary_path/path", v -> binaryPaths.add(Path.of(v)));
 			
-			String queryFormat = System.getProperty("query.format", "Query {QUERY} result: {VAL}");
-			for (var q : argParser.queries) {
-				parser.addQuery(q, v -> {
-					var substMap = Map.of("QUERY", q, "VAL", v);
+			if (argParser.queries.size() > 1) {
+				// default: "{VALUE1}, {VALUE2}, {VALUE3}" — auto-built from count
+				StringBuilder defaultFormat = new StringBuilder(256);
+				for (int i = 1; i <= argParser.queries.size(); i++) {
+					defaultFormat.append("{VALUE")
+						.append(i)
+						.append('}');
+					if (i < argParser.queries.size()) {
+						defaultFormat.append(", ");
+					}
+				}
+				String queryFormat = System.getProperty("query.format", defaultFormat.toString());
+
+				parser.addRowQueries2(argParser.queries, values -> {
+					Map<String, String> substMap = new HashMap<>();
+					for (int i = 0; i < values.size(); i++) {
+						substMap.put("VALUE" + (i + 1), values.get(i));
+					}
 					buff.append(ParseUtils.substitute(queryFormat, substMap)).append("\n");
 				});
+			} else {
+				String queryFormat = System.getProperty("query.format", "{VALUE}");
+				for (var q : argParser.queries) {
+					parser.addQuery(q, v -> {
+						var substMap = Map.of("VALUE", v);
+						buff.append(ParseUtils.substitute(queryFormat, substMap)).append("\n");
+					});
+				}
 			}
 			
 			parser.parse(out);

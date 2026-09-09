@@ -17,7 +17,7 @@ class WMLQueryTest {
 	
 	boolean match(List<String> tagStack, String queryStr, String key) {
 		var query = WMLQuery.of(queryStr);
-		return query.match(tagStack, key);
+		return query.stream().anyMatch(q -> q.match(tagStack, key));
 	}
 
 	// --- full tag path match (no key) ---

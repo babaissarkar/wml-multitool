@@ -28,9 +28,33 @@ public class WMLQuery {
 		}
 //		return false;
 	}
+
+	/** The top-level tag that scopes an query. */
+	public String rowTag() {
+		return !qparts.isEmpty() ? qparts.getFirst() : "";
+	}
+	
+	public static List<WMLQuery> of(String queryStr) {
+		int firstComma = queryStr.indexOf(',');
+		List<WMLQuery> list = new ArrayList<>();
+		
+		if (firstComma < 0) {
+			list.add(WMLQuery.ofSingle(queryStr));
+			return list;
+		}
+		
+		int baseEnd    = queryStr.lastIndexOf('/', firstComma) + 1;
+		String base    = queryStr.substring(0, baseEnd);
+		
+		for (var field : queryStr.substring(baseEnd).split(",")) {
+			list.add(WMLQuery.ofSingle(base + field.trim()));
+		}
+		
+		return list;
+	}
 	
 	@AIGenerated
-	public static WMLQuery of(String queryStr) {
+	private static WMLQuery ofSingle(String queryStr) {
 		int start = 0;
 		boolean absolute = true;
 

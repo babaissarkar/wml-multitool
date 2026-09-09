@@ -19,9 +19,48 @@ import static com.babai.wml.tokenizer.ParserTokenizer.tokenize;
 public class Parser {
 	private List<String> tagStack = new ArrayList<>();
 	private HashMap<WMLQuery, List<Consumer<String>>> queryLambdas = new HashMap<>();
+	private List<WMLQuery> rowQueries = List.of();
+	private Consumer<List<String>> rowConsumer;
+	private String rowTag = "";
+	private List<List<String>> rowValues;
 
-	public void addQuery(String query, Consumer<String> queryLambda) {
-		queryLambdas.computeIfAbsent(WMLQuery.of(query), k -> new ArrayList<>()).add(queryLambda);
+	public void addQuery(String queryStr, Consumer<String> queryLambda) {
+		for (var query : WMLQuery.of(queryStr)) {
+			queryLambdas.computeIfAbsent(query, k -> new ArrayList<>()).add(queryLambda);
+		}
+	}
+	
+	public void addQuery(WMLQuery query, Consumer<String> queryLambda) {
+		queryLambdas.computeIfAbsent(query, k -> new ArrayList<>()).add(queryLambda);
+	}
+	
+	public void addRowQueries(List<String> queries, Consumer<List<String>> consumer) {
+		List<WMLQuery> parsed = new ArrayList<>();
+		for (var q : queries) {
+			parsed.addAll(WMLQuery.of(q));
+		}
+		addRowQueries2(parsed, consumer);
+	}
+
+	/**
+	 * Collect a group of queries into one result for each occurrence of
+	 * their shared top-level tag. Values repeated within a column are joined with
+	 * {@code |}; missing values are returned as empty strings.
+	 */
+	public void addRowQueries2(List<WMLQuery> queries, Consumer<List<String>> consumer) {
+		if (queries.size() < 2) {
+			throw new IllegalArgumentException("Row queries require at least two query expressions.");
+		}
+
+		String sharedRowTag = queries.getFirst().rowTag();
+		if (queries.stream().anyMatch(q -> !sharedRowTag.equals(q.rowTag()))) {
+			throw new IllegalArgumentException(
+				"Row queries must share the same top-level tag (e.g. unit_type/id and unit_type/name).");
+		}
+
+		rowQueries = queries;
+		rowConsumer = consumer;
+		rowTag = sharedRowTag;
 	}
 
 	public void parse(String text) throws IOException {
@@ -49,6 +88,14 @@ public class Parser {
 						}
 					}
 				});
+
+				if (rowValues != null) {
+					for (int i = 0; i < rowQueries.size(); i++) {
+						if (rowQueries.get(i).match(tagStack, keyStr)) {
+							rowValues.get(i).add(valStr);
+						}
+					}
+				}
 			}
 			
 			key.setLength(0);
@@ -58,6 +105,10 @@ public class Parser {
 		case TAG_START -> {
 			if (isTag(contents)) {
 				tagStack.add(contents);
+				if (contents.equals(rowTag)) {
+					rowValues = new ArrayList<>();
+					for (int i = 0; i < rowQueries.size(); i++) rowValues.add(new ArrayList<>());
+				}
 			}
 		}
 		
@@ -65,6 +116,12 @@ public class Parser {
 			if (tagStack.isEmpty()) {
 				errorPrint(() -> "End tag without matching start tag.");
 			} else if (tagStack.getLast().equals(contents)) {
+				if (contents.equals(rowTag) && rowValues != null) {
+					rowConsumer.accept(rowValues.stream()
+						.map(values -> String.join("|", values))
+						.toList());
+					rowValues = null;
+				}
 				tagStack.removeLast();
 			} else {
 				errorPrint(() -> "Wrong end tag " + colorify(contents, RED)

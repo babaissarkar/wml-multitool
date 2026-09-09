@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 
+import com.babai.wml.query.WMLQuery;
 import com.babai.wml.utils.AIGenerated;
 
 import static com.babai.wml.parser.ParseUtils.stripMatchingQuotes;
@@ -47,7 +48,7 @@ public class ArgParser {
 	public boolean      generateMacroRef   = false;
 	public Path         macroRefPath;
 	public boolean      definitions        = false;
-	public List<String> queries            = new ArrayList<>();
+	public List<WMLQuery> queries            = new ArrayList<>();
 
 	// ─────────────────────────────────────────────────────────────────────────
 
@@ -91,7 +92,7 @@ public class ArgParser {
 		section("Data extraction / queries");
 		opt("-l, -list-files",                    "Print tree of preprocessed file names");
 		opt("-df, -definitions",                  "List all macro definitions");
-		opt("-q, -query <expr>",                  "XPath-style WML query. Repeatable.");
+		opt("-q, -query <expr>",                  "XPath-style WML query. Repeatable; multiple queries produce one row per shared top-level tag.");
 		opt("-eut, -extract-unit-type <path>",    "Extract unit type data to CSV");
 		opt("-gmr, -generate-macro-ref <path>",   "Generate HTML macro reference");
 
@@ -211,7 +212,7 @@ public class ArgParser {
 			// ── Data extraction / queries ─────────────────────────────
 			case "l", "list-files"   -> listFilesInInfo = true;
 			case "df", "definitions" -> definitions = true;
-			case "q", "query"        -> queries.add(args[++i]);
+			case "q", "query"        -> queries.addAll(WMLQuery.of(args[++i]));
 
 			case "eut", "extract-unit-type" -> {
 				extractUnitTypeData = true;
