@@ -2,9 +2,12 @@ package com.babai.wml;
 
 import static com.babai.wml.cli.ANSIFormatter.colorify;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -269,6 +272,8 @@ public class Main {
 			LogUtils.infoPrint(() -> "Unit Types: " + p.getUnitTypes().size());
 		}
 		
+		writeCache();
+		
 //		if (argParse.extractUnitTypeData) {
 
 //			HashSet<Config> unitTypeData = p.getUnitTypeData();
@@ -283,6 +288,42 @@ public class Main {
 			writer.flush();
 			writer.close();
 		}
+	}
+
+	private static void writeCache() {
+		// Write Cachefile
+		Path cwd = Path.of("").toAbsolutePath();
+		StringBuilder fileBuff = new StringBuilder();
+		StringBuilder symBuff = new StringBuilder();
+		int i = 1;
+		for (var entry : fileExplanations.entrySet()) {
+			// i = numeric identifier for a file
+			fileBuff.append(i).append('=').append(entry.getKey()).append('\n');
+			
+			var macrosByUri = defines.macrosByUri(entry.getKey());
+			if (!macrosByUri.isEmpty()) {
+				symBuff.append('F').append(i).append('\n'); // 'F'3 -> symbols of third file
+				for (var macro : macrosByUri) {
+					symBuff.append(defines.getLineNum(macro))
+						.append(' ')
+						.append(macro)
+						.append('\n');
+				}
+			}
+			i++;
+		}
+
+		try (
+			var out = Files.newOutputStream(cwd.resolve(".cacheFile"));
+			var bout = new BufferedOutputStream(out))
+		{
+			bout.write(fileBuff.toString().getBytes(StandardCharsets.UTF_8));
+			bout.write('\n');
+			bout.write(symBuff.toString().getBytes(StandardCharsets.UTF_8));
+		} catch (IOException ioe) {
+			LogUtils.errorPrint(() -> ioe.getMessage());
+		}
+
 	}
 
 	private static void writeTime(String msg, long start) {

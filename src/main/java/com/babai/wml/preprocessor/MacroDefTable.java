@@ -67,15 +67,16 @@ public class MacroDefTable {
 	}
 	
 	public Map<String, MacroDef> macros() {
-		return nameValMap;
+		return nameValMap != null ? nameValMap : Map.of();
 	}
 	
 	public Set<String> macrosByUri(String uri) {
-		return uriNamelistMap.get(uri);
+		var uriMacroSet = uriNamelistMap.get(uri);
+		return uriMacroSet != null ? uriMacroSet : Set.of();
 	}
 
 	public Map<String, Set<String>> uriMap() {
-		return uriNamelistMap;
+		return uriNamelistMap != null ? uriNamelistMap : Map.of();
 	}
 	
 	public int size() {
