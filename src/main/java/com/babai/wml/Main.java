@@ -4,10 +4,9 @@ import static com.babai.wml.cli.ANSIFormatter.colorify;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
+import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -15,6 +14,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.zip.GZIPOutputStream;
 
 import com.babai.wml.cli.ANSIFormatter;
 import com.babai.wml.cli.ArgParser;
@@ -291,39 +291,31 @@ public class Main {
 	}
 
 	private static void writeCache() {
-		// Write Cachefile
 		Path cwd = Path.of("").toAbsolutePath();
-		StringBuilder fileBuff = new StringBuilder();
-		StringBuilder symBuff = new StringBuilder();
-		int i = 1;
-		for (var entry : fileExplanations.entrySet()) {
-			// i = numeric identifier for a file
-			fileBuff.append(i).append('=').append(entry.getKey()).append('\n');
-			
-			var macrosByUri = defines.macrosByUri(entry.getKey());
-			if (!macrosByUri.isEmpty()) {
-				symBuff.append('F').append(i).append('\n'); // 'F'3 -> symbols of third file
-				for (var macro : macrosByUri) {
-					symBuff.append(defines.getLineNum(macro))
-						.append(' ')
-						.append(macro)
-						.append('\n');
-				}
-			}
-			i++;
-		}
 
-		try (
-			var out = Files.newOutputStream(cwd.resolve(".cacheFile"));
-			var bout = new BufferedOutputStream(out))
+		try (var out = new DataOutputStream(
+				new BufferedOutputStream(
+					new GZIPOutputStream(
+						Files.newOutputStream(cwd.resolve(".cacheFile"))))))
 		{
-			bout.write(fileBuff.toString().getBytes(StandardCharsets.UTF_8));
-			bout.write('\n');
-			bout.write(symBuff.toString().getBytes(StandardCharsets.UTF_8));
+			out.writeInt(fileExplanations.size());
+
+			int i = 1;
+			for (var entry : fileExplanations.entrySet()) {
+				out.writeInt(i);
+				out.writeUTF(entry.getKey());
+
+				var macrosByUri = defines.macrosByUri(entry.getKey());
+				out.writeInt(macrosByUri.size());
+				for (var macro : macrosByUri) {
+					out.writeInt(defines.getLineNum(macro));
+					out.writeUTF(macro);
+				}
+				i++;
+			}
 		} catch (IOException ioe) {
 			LogUtils.errorPrint(() -> ioe.getMessage());
 		}
-
 	}
 
 	private static void writeTime(String msg, long start) {
