@@ -98,7 +98,7 @@ Adjust paths as needed. Append the `wml` section to your `servers` if you have o
 {
     "servers": {
         "wml": {
-            "command": ["/usr/bin/java","-jar","/path/to/wml.jar","-s","-datadir","/path/to/wesnoth/data","-userdatadir","/path/to/wesnoth/user/data","-include","/path/to/wesnoth/datadir/core/macros","-include","/path/to/wesnoth/datadir/core/units.cfg"],
+            "command": ["/usr/bin/java","-jar","/path/to/wml.jar","-s","-datadir","/path/to/wesnoth/root","-include","/path/to/wesnoth/root/data/core/macros","-include","/path/to/wesnoth/root/data/core/units.cfg"],
             "useWorkspace": true,
             "rootIndicationFileNames": ["_main.cfg"],
             "highlightingModeRegex": "Wesnoth"
