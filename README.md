@@ -106,5 +106,65 @@ Adjust paths as needed. Append the `wml` section to your `servers` if you have o
    }
 }
 ```
+* **NVim** (version 0.12.3+): Use the following configuration in your `init.lua`, adjust paths per your installation:
+```lua
+local lspconfig = require('lspconfig')
+local configs = require('lspconfig.configs')
+
+if not configs.wml then
+	configs.wml = {
+		default_config = {
+		  cmd = {
+			'/usr/bin/java', '-jar',
+			'/path/to/wml.jar',
+			'-s',
+			'-datadir', '/path/to/wesnoth/root',
+			'-include', '/path/to/wesnoth/root/data/core/macros',
+			'-include', '/path/to/wesnoth/root/data/core/units.cfg'
+		  },
+		  filetypes = { 'cfg', 'pbl' },
+--		  root_markers = { '_main.cfg' },
+		  workspace_required = true,
+		  root_dir = lspconfig.util.root_pattern('_main.cfg')
+		},
+	}
+end
+
+lspconfig.wml.setup{}
+
+local opts = { noremap=true, silent=true }
+local keymap = vim.api.nvim_set_keymap
+
+-- Go to definition
+keymap('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<CR>', opts)
+
+-- Show hover documentation
+keymap('n', 'K', '<cmd>lua vim.lsp.buf.hover()<CR>', opts)
+
+-- Go to references
+keymap('n', 'gr', '<cmd>lua vim.lsp.buf.references()<CR>', opts)
+
+-- Go to implementation
+keymap('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<CR>', opts)
+
+-- Show signature help (function parameter hints)
+keymap('n', '<C-k>', '<cmd>lua vim.lsp.buf.signature_help()<CR>', opts)
+
+-- Rename symbol
+keymap('n', '<leader>rn', '<cmd>lua vim.lsp.buf.rename()<CR>', opts)
+
+-- Code actions
+keymap('n', '<leader>ca', '<cmd>lua vim.lsp.buf.code_action()<CR>', opts)
+
+-- Format document
+keymap('n', '<leader>f', '<cmd>lua vim.lsp.buf.format{ async = true }<CR>', opts)
+
+-- Diagnostics navigation
+keymap('n', '[d', '<cmd>lua vim.diagnostic.goto_prev()<CR>', opts)
+keymap('n', ']d', '<cmd>lua vim.diagnostic.goto_next()<CR>', opts)
+
+-- Show diagnostics in floating window
+keymap('n', '<leader>d', '<cmd>lua vim.diagnostic.open_float()<CR>', opts)
+```
 
 Note: this is still very much a prototype. Please be forgiving and report any errors you come across. A log is usually available in Output tab in VSCode under WML LSP Server category, or the Output tab in Kate.
