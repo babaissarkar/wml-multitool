@@ -1,6 +1,7 @@
 package com.babai.wml.preprocessor;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -482,5 +483,11 @@ public class Preprocessor implements TokenProcessor {
 	
 	public Tree<String> getIncludeTree() {
 		return filesTree;
+	}
+
+	public void forget(String uri) {
+		Path path = Path.of(URI.create(uri));
+		fileList.remove(path);
+		try { fileList.remove(path.toRealPath()); } catch (IOException ignored) {}
 	}
 }

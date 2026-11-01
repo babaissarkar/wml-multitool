@@ -663,6 +663,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 	}
 
 	private void parseFile(String uri) {
+		p.forget(uri);
 		p.getMacroCalls().clearByUri(uri);
 		defines.removeMacroByUri(uri);
 		unitTypes.entrySet().removeIf(e -> e.getValue().equals(uri));
