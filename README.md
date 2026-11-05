@@ -106,6 +106,16 @@ Adjust paths as needed. Append the `wml` section to your `servers` if you have o
    }
 }
 ```
+* **EMacs** (version 30+): Use the following snippet in your `.emacs.d/init.el` or whatever your config file is:
+```lisp
+(define-derived-mode wesnoth-mode prog-mode "WML"
+  (setq-local comment-start "# "))
+(add-to-list 'auto-mode-alist '("\\.cfg\\'" . wesnoth-mode))
+(with-eval-after-load 'eglot
+  (add-to-list 'eglot-server-programs
+               '(wesnoth-mode . ("java" "-jar" "path/to/wml.jar" "-s" "-datadir" "/path/to/wesnoth/root" "-include" "/path/to/wesnoth/root/data/core"))))
+(add-hook 'wesnoth-mode-hook #'eglot-ensure)
+```
 * **NVim** (version 0.12.3+): Use the following configuration in your `init.lua`, adjust paths per your installation:
 ```lua
 local lspconfig = require('lspconfig')
