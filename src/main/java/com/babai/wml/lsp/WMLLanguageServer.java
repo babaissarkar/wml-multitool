@@ -213,18 +213,27 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 			workspaceUri = Path.of(params.getRootPath()).toUri().toString();
 		}
 		
-		if (pathContext.userDataPath() == null) {
-			Path upath = Path.of(URI.create(workspaceUri));
-			while (upath != null && !upath.endsWith("data")) upath = upath.getParent();
-			if (upath != null) {
-				this.pathContext = new PathContext(pathContext.dataPath(), upath.getParent());
+		boolean singleFileMode = false;
+		if (workspaceUri != null) {
+			if (pathContext.userDataPath() == null) {
+				Path upath = Path.of(URI.create(workspaceUri));
+				while (upath != null && !upath.endsWith("data")) upath = upath.getParent();
+				if (upath != null) {
+					this.pathContext = new PathContext(pathContext.dataPath(), upath.getParent());
+				} else {
+					singleFileMode = true;
+					showLSPMessage("Path outside 'data', running in single file mode.");
+				}
 			}
+		} else {
+			singleFileMode = true;
+			showLSPMessage("Path outside 'data', running in single file mode.");
 		}
 
 		// Send a "ready" message after startup
 		showLSPMessage("WML LSP Server started at: URI=" + workspaceUri);
 
-		initParserForLSP(workspaceUri);
+		initParserForLSP(workspaceUri, singleFileMode);
 
 		return CompletableFuture.completedFuture(result);
 	}
@@ -647,7 +656,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 		client.refreshDiagnostics();
 	}
 
-	private void initParserForLSP(String rootUri) {
+	private void initParserForLSP(String rootUri, boolean singleFileMode) {
 		Tokenizer.enableExtraction(true);
 		
 		p = new Preprocessor(pathContext, defines); // 'defines' supposed to contain only predefined macros
@@ -655,7 +664,7 @@ public class WMLLanguageServer implements LanguageServer, LanguageClientAware, T
 		
 		includePaths.forEach(p::preprocess);
 		
-		if (rootUri != null) {
+		if (rootUri != null && !singleFileMode) {
 			parseFile(rootUri);
 		}
 
